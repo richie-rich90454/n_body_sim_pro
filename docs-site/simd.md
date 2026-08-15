@@ -1,3 +1,8 @@
+---
+title: SIMD
+description: The SIMD coverage matrix, runtime dispatch, the AVX2 all-pairs kernel, the experimental SIMD Barnes-Hut kernel, and correctness testing.
+---
+
 # SIMD
 
 ## Coverage matrix
