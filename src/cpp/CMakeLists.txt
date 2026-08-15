@@ -55,6 +55,10 @@ target_link_libraries(${HPCSIM_CPP_LIBRARY} PUBLIC
 
 target_compile_definitions(${HPCSIM_CPP_LIBRARY} PUBLIC GLEW_STATIC)
 
+if(HPCSIM_ENABLE_DEVELOPER_MODE)
+    target_compile_definitions(${HPCSIM_CPP_LIBRARY} PUBLIC HPCSIM_DEVELOPER_MODE)
+endif()
+
 target_compile_features(${HPCSIM_CPP_LIBRARY} PUBLIC cxx_std_20)
 
 hpcsim_apply_warnings(${HPCSIM_CPP_LIBRARY})
