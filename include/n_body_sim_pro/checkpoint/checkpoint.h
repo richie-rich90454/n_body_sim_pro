@@ -1,8 +1,8 @@
-#ifndef HPCSIM_CHECKPOINT_CHECKPOINT_H
-#define HPCSIM_CHECKPOINT_CHECKPOINT_H
+#ifndef N_BODY_SIM_PRO_CHECKPOINT_CHECKPOINT_H
+#define N_BODY_SIM_PRO_CHECKPOINT_CHECKPOINT_H
 
-#include "hpcsim/core/particle_system.h"
-#include "hpcsim/core/status.h"
+#include "n_body_sim_pro/core/particle_system.h"
+#include "n_body_sim_pro/core/status.h"
 
 #include <stdint.h>
 
@@ -27,9 +27,9 @@ extern "C" {
  *     (particle_count doubles each)
  */
 
-enum { HPCSIM_CHECKPOINT_MAGIC = 0x53504348, HPCSIM_CHECKPOINT_VERSION = 1 };
+enum { N_BODY_SIM_PRO_CHECKPOINT_MAGIC = 0x53504348, N_BODY_SIM_PRO_CHECKPOINT_VERSION = 1 };
 
-typedef struct HpcsimCheckpointHeader {
+typedef struct NBodySimProCheckpointHeader {
     uint32_t magic;
     uint32_t version;
     size_t particle_count;
@@ -40,35 +40,35 @@ typedef struct HpcsimCheckpointHeader {
     int32_t barnes_hut_enabled;
     uint64_t random_seed;
     int32_t preset;
-} HpcsimCheckpointHeader;
+} NBodySimProCheckpointHeader;
 
 /*
  * Write the particle state and header to `path`. Overwrites an existing
- * file. Returns HPCSIM_STATUS_OK on success.
+ * file. Returns N_BODY_SIM_PRO_STATUS_OK on success.
  */
-HpcsimStatus hpcsim_checkpoint_write(const char* path,
-                                     const HpcsimParticleSystemView* view,
-                                     const HpcsimCheckpointHeader* header,
-                                     HpcsimError* error);
+NBodySimProStatus n_body_sim_pro_checkpoint_write(const char* path,
+                                     const NBodySimProParticleSystemView* view,
+                                     const NBodySimProCheckpointHeader* header,
+                                     NBodySimProError* error);
 
 /*
  * Read only the checkpoint header (magic, version, metadata) without the
  * particle arrays, so a caller can size storage before a full read.
  */
-HpcsimStatus hpcsim_checkpoint_peek(const char* path, HpcsimCheckpointHeader* header,
-                                    HpcsimError* error);
+NBodySimProStatus n_body_sim_pro_checkpoint_peek(const char* path, NBodySimProCheckpointHeader* header,
+                                    NBodySimProError* error);
 
 /*
  * Read a checkpoint. `particle_system` must be created with at least the
  * checkpoint's particle count capacity; its storage is filled from the file.
- * On success *header carries the stored metadata. Returns HPCSIM_STATUS_OK.
+ * On success *header carries the stored metadata. Returns N_BODY_SIM_PRO_STATUS_OK.
  */
-HpcsimStatus hpcsim_checkpoint_read(const char* path, HpcsimCheckpointHeader* header,
-                                    HpcsimParticleSystem* particle_system,
-                                    HpcsimError* error);
+NBodySimProStatus n_body_sim_pro_checkpoint_read(const char* path, NBodySimProCheckpointHeader* header,
+                                    NBodySimProParticleSystem* particle_system,
+                                    NBodySimProError* error);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* HPCSIM_CHECKPOINT_CHECKPOINT_H */
+#endif /* N_BODY_SIM_PRO_CHECKPOINT_CHECKPOINT_H */

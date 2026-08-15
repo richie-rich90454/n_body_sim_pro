@@ -1,0 +1,157 @@
+#ifndef N_BODY_SIM_PRO_CORE_PARTICLE_SYSTEM_H
+#define N_BODY_SIM_PRO_CORE_PARTICLE_SYSTEM_H
+
+#include "n_body_sim_pro/core/status.h"
+#include "n_body_sim_pro/core/vector.h"
+
+#include <stddef.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/*
+ * Particle storage in Structure-of-Arrays (SoA) form.
+ *
+ * Layout rationale:
+ *   - SIMD kernels operate on one physical quantity at a time (all x
+ *     positions, then all y positions, ...); SoA keeps each stream contiguous
+ *     so vector loads/stores stay dense and cache-friendly.
+ *   - Physical quantities of a single particle are updated at different
+ *     times during a timestep (forces accumulate into acceleration, then
+ *     integration reads position+velocity); separating them avoids writing
+ *     entire large particles when only one quantity changes.
+ *
+ * Every SoA array is 64-byte aligned. All quantities are double precision.
+ * The type is opaque; access goes through the functions below.
+ */
+
+typedef struct NBodySimProParticleSystem NBodySimProParticleSystem;
+
+/*
+ * Lightweight snapshot of a particle system's raw storage.
+ *
+ * Physics kernels and the renderer consume this view rather than the owning
+ * object. It carries no ownership; it is only valid while the source system
+ * lives and until the source system is reserved/reallocated.
+ */
+typedef struct NBodySimProParticleSystemView {
+    size_t particle_count;
+    double* positions_x;
+    double* positions_y;
+    double* positions_z;
+    double* velocities_x;
+    double* velocities_y;
+    double* velocities_z;
+    double* accelerations_x;
+    double* accelerations_y;
+    double* accelerations_z;
+    double* masses;
+} NBodySimProParticleSystemView;
+
+/*
+ * Populate *view from the particle system's current storage. Returns
+ * N_BODY_SIM_PRO_STATUS_OK on success.
+ */
+NBodySimProStatus n_body_sim_pro_particle_system_view(const NBodySimProParticleSystem* particle_system,
+                                         NBodySimProParticleSystemView* view, NBodySimProError* error);
+
+/*
+ * The default alignment for particle storage arrays. 64 bytes exceeds AVX-512
+ * width (64 bytes) so any supported SIMD backend can load directly from these
+ * buffers without manual alignment handling.
+ */
+enum { N_BODY_SIM_PRO_PARTICLE_SYSTEM_ALIGNMENT = 64 };
+
+/*
+ * Create a particle system with storage for at most `capacity` particles.
+ * The system owns its storage and must be released with
+ * n_body_sim_pro_particle_system_destroy.
+ *
+ * Returns NULL on allocation failure or invalid capacity.
+ */
+NBodySimProParticleSystem* n_body_sim_pro_particle_system_create(size_t capacity);
+
+/* Release all storage owned by the particle system. NULL-safe. */
+void n_body_sim_pro_particle_system_destroy(NBodySimProParticleSystem* particle_system);
+
+/* Number of particles currently stored in the system. */
+size_t n_body_sim_pro_particle_system_particle_count(const NBodySimProParticleSystem* particle_system);
+
+/* Maximum number of particles the system can store without reallocation. */
+size_t n_body_sim_pro_particle_system_capacity(const NBodySimProParticleSystem* particle_system);
+
+/*
+ * Grow storage so that at least `capacity` particles fit, preserving existing
+ * particles. Returns N_BODY_SIM_PRO_STATUS_OK on success.
+ */
+NBodySimProStatus n_body_sim_pro_particle_system_reserve(NBodySimProParticleSystem* particle_system,
+                                            size_t capacity, NBodySimProError* error);
+
+/*
+ * Set the active particle count. `count` must not exceed capacity.
+ * Particles beyond the count keep their previous values; the active region is
+ * what every simulation kernel reads and writes.
+ */
+NBodySimProStatus n_body_sim_pro_particle_system_set_particle_count(NBodySimProParticleSystem* particle_system,
+                                                       size_t count, NBodySimProError* error);
+
+/*
+ * Scalar accessors. `index` must be less than the current particle count.
+ * The setter variants also accept NaN-free masses and are bounds-checked.
+ */
+NBodySimProStatus n_body_sim_pro_particle_system_set_position(NBodySimProParticleSystem* particle_system,
+                                                 size_t index, NBodySimProVector3 position,
+                                                 NBodySimProError* error);
+
+NBodySimProStatus n_body_sim_pro_particle_system_set_velocity(NBodySimProParticleSystem* particle_system,
+                                                 size_t index, NBodySimProVector3 velocity,
+                                                 NBodySimProError* error);
+
+NBodySimProStatus n_body_sim_pro_particle_system_set_acceleration(NBodySimProParticleSystem* particle_system,
+                                                     size_t index, NBodySimProVector3 acceleration,
+                                                     NBodySimProError* error);
+
+NBodySimProStatus n_body_sim_pro_particle_system_set_mass(NBodySimProParticleSystem* particle_system,
+                                             size_t index, double mass, NBodySimProError* error);
+
+NBodySimProStatus n_body_sim_pro_particle_system_position(const NBodySimProParticleSystem* particle_system,
+                                             size_t index, NBodySimProVector3* position,
+                                             NBodySimProError* error);
+
+NBodySimProStatus n_body_sim_pro_particle_system_velocity(const NBodySimProParticleSystem* particle_system,
+                                             size_t index, NBodySimProVector3* velocity,
+                                             NBodySimProError* error);
+
+NBodySimProStatus n_body_sim_pro_particle_system_acceleration(const NBodySimProParticleSystem* particle_system,
+                                                 size_t index, NBodySimProVector3* acceleration,
+                                                 NBodySimProError* error);
+
+NBodySimProStatus n_body_sim_pro_particle_system_mass(const NBodySimProParticleSystem* particle_system,
+                                         size_t index, double* mass, NBodySimProError* error);
+
+/*
+ * Raw SoA storage accessors for performance kernels.
+ *
+ * These expose the underlying contiguous arrays so numerical kernels and the
+ * renderer can stream over them directly. Kernels MUST NOT read or write
+ * beyond `particle_count`. The arrays are only valid for the lifetime of the
+ * particle system and remain valid until the next call to
+ * n_body_sim_pro_particle_system_reserve.
+ */
+double* n_body_sim_pro_particle_system_positions_x(NBodySimProParticleSystem* particle_system);
+double* n_body_sim_pro_particle_system_positions_y(NBodySimProParticleSystem* particle_system);
+double* n_body_sim_pro_particle_system_positions_z(NBodySimProParticleSystem* particle_system);
+double* n_body_sim_pro_particle_system_velocities_x(NBodySimProParticleSystem* particle_system);
+double* n_body_sim_pro_particle_system_velocities_y(NBodySimProParticleSystem* particle_system);
+double* n_body_sim_pro_particle_system_velocities_z(NBodySimProParticleSystem* particle_system);
+double* n_body_sim_pro_particle_system_accelerations_x(NBodySimProParticleSystem* particle_system);
+double* n_body_sim_pro_particle_system_accelerations_y(NBodySimProParticleSystem* particle_system);
+double* n_body_sim_pro_particle_system_accelerations_z(NBodySimProParticleSystem* particle_system);
+double* n_body_sim_pro_particle_system_masses(NBodySimProParticleSystem* particle_system);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* N_BODY_SIM_PRO_CORE_PARTICLE_SYSTEM_H */

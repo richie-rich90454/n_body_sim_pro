@@ -1,7 +1,7 @@
-#ifndef HPCSIM_MEMORY_ALLOCATION_TRACKER_H
-#define HPCSIM_MEMORY_ALLOCATION_TRACKER_H
+#ifndef N_BODY_SIM_PRO_MEMORY_ALLOCATION_TRACKER_H
+#define N_BODY_SIM_PRO_MEMORY_ALLOCATION_TRACKER_H
 
-#include "hpcsim/memory/allocator.h"
+#include "n_body_sim_pro/memory/allocator.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -28,19 +28,19 @@ extern "C" {
  */
 
 enum {
-    HPCSIM_ALLOCATION_TRACKER_EVENT_RING_SIZE = 65536,
-    HPCSIM_ALLOCATION_TRACKER_THREAD_BUFFER_SIZE = 128
+    N_BODY_SIM_PRO_ALLOCATION_TRACKER_EVENT_RING_SIZE = 65536,
+    N_BODY_SIM_PRO_ALLOCATION_TRACKER_THREAD_BUFFER_SIZE = 128
 };
 
-typedef struct HpcsimAllocationEvent {
+typedef struct NBodySimProAllocationEvent {
     uint64_t sequence;
     size_t size;
-    HpcsimAllocationCategory category;
+    NBodySimProAllocationCategory category;
     uint32_t thread_id;
     int is_allocation;
-} HpcsimAllocationEvent;
+} NBodySimProAllocationEvent;
 
-typedef struct HpcsimAllocationSummary {
+typedef struct NBodySimProAllocationSummary {
     size_t live_allocations;
     size_t total_allocations;
     size_t total_deallocations;
@@ -51,19 +51,19 @@ typedef struct HpcsimAllocationSummary {
     double allocation_rate_per_second;
     double deallocation_rate_per_second;
     size_t dropped_events;
-    size_t live_bytes_by_category[HPCSIM_ALLOCATION_CATEGORY_COUNT];
-    size_t live_allocations_by_category[HPCSIM_ALLOCATION_CATEGORY_COUNT];
-} HpcsimAllocationSummary;
+    size_t live_bytes_by_category[N_BODY_SIM_PRO_ALLOCATION_CATEGORY_COUNT];
+    size_t live_allocations_by_category[N_BODY_SIM_PRO_ALLOCATION_CATEGORY_COUNT];
+} NBodySimProAllocationSummary;
 
 /* Enable (1) or disable (0) tracking. Disabling leaves counters intact. */
-void hpcsim_allocation_tracker_set_enabled(int enabled);
-int hpcsim_allocation_tracker_is_enabled(void);
+void n_body_sim_pro_allocation_tracker_set_enabled(int enabled);
+int n_body_sim_pro_allocation_tracker_is_enabled(void);
 
 /*
  * Record an allocation event (called by the allocator, not by users).
  * Thread-safe; buffers into thread-local storage and flushes in batches.
  */
-void hpcsim_allocation_tracker_record(HpcsimAllocationCategory category, size_t size,
+void n_body_sim_pro_allocation_tracker_record(NBodySimProAllocationCategory category, size_t size,
                                       int is_allocation);
 
 /*
@@ -71,17 +71,17 @@ void hpcsim_allocation_tracker_record(HpcsimAllocationCategory category, size_t 
  * totals and rates (rates computed over the window since the previous poll).
  * Returns 0 on success.
  */
-int hpcsim_allocation_tracker_poll(HpcsimAllocationSummary* summary);
+int n_body_sim_pro_allocation_tracker_poll(NBodySimProAllocationSummary* summary);
 
 /*
  * Report the last `count` (clamped) allocation events, newest first, for the
  * developer event stream. Returns the number of events written.
  */
-size_t hpcsim_allocation_tracker_recent_events(HpcsimAllocationEvent* events,
+size_t n_body_sim_pro_allocation_tracker_recent_events(NBodySimProAllocationEvent* events,
                                                size_t count);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* HPCSIM_MEMORY_ALLOCATION_TRACKER_H */
+#endif /* N_BODY_SIM_PRO_MEMORY_ALLOCATION_TRACKER_H */

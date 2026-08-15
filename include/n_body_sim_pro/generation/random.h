@@ -1,5 +1,5 @@
-#ifndef HPCSIM_GENERATION_RANDOM_H
-#define HPCSIM_GENERATION_RANDOM_H
+#ifndef N_BODY_SIM_PRO_GENERATION_RANDOM_H
+#define N_BODY_SIM_PRO_GENERATION_RANDOM_H
 
 #include <stdint.h>
 
@@ -15,28 +15,28 @@ extern "C" {
  * so generation never uses the C library rand() or platform randomness.
  */
 
-typedef struct HpcsimRandomGenerator {
+typedef struct NBodySimProRandomGenerator {
     uint64_t state[4];
-} HpcsimRandomGenerator;
+} NBodySimProRandomGenerator;
 
 /* Seed the generator from `seed` (seeds are mixed with splitmix64). */
-void hpcsim_random_init(HpcsimRandomGenerator* generator, uint64_t seed);
+void n_body_sim_pro_random_init(NBodySimProRandomGenerator* generator, uint64_t seed);
 
 /* Uniform 64-bit integer in [0, 2^64). */
-uint64_t hpcsim_random_next_u64(HpcsimRandomGenerator* generator);
+uint64_t n_body_sim_pro_random_next_u64(NBodySimProRandomGenerator* generator);
 
 /* Uniform double in [0, 1). */
-double hpcsim_random_next_double(HpcsimRandomGenerator* generator);
+double n_body_sim_pro_random_next_double(NBodySimProRandomGenerator* generator);
 
 /* Uniform double in [minimum, maximum). */
-double hpcsim_random_next_double_range(HpcsimRandomGenerator* generator,
+double n_body_sim_pro_random_next_double_range(NBodySimProRandomGenerator* generator,
                                        double minimum, double maximum);
 
 /* Gaussian (normal) sample with mean 0 and unit variance (Box-Muller). */
-double hpcsim_random_next_gaussian(HpcsimRandomGenerator* generator);
+double n_body_sim_pro_random_next_gaussian(NBodySimProRandomGenerator* generator);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* HPCSIM_GENERATION_RANDOM_H */
+#endif /* N_BODY_SIM_PRO_GENERATION_RANDOM_H */

@@ -1,5 +1,5 @@
-#ifndef HPCSIM_SIMD_CPU_H
-#define HPCSIM_SIMD_CPU_H
+#ifndef N_BODY_SIM_PRO_SIMD_CPU_H
+#define N_BODY_SIM_PRO_SIMD_CPU_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,7 +13,7 @@ extern "C" {
  * hardware actually supports.
  */
 
-typedef struct HpcsimCpuFeatures {
+typedef struct NBodySimProCpuFeatures {
     int has_sse2;
     int has_sse3;
     int has_avx;
@@ -21,16 +21,16 @@ typedef struct HpcsimCpuFeatures {
     int has_avx512_foundation;
     int has_fma;
     int has_neon;
-} HpcsimCpuFeatures;
+} NBodySimProCpuFeatures;
 
 /* Detect the features of the CPU the program is running on. */
-HpcsimCpuFeatures hpcsim_cpu_detect_features(void);
+NBodySimProCpuFeatures n_body_sim_pro_cpu_detect_features(void);
 
 /* Human-readable short CPU name, best-effort. Never returns NULL. */
-const char* hpcsim_cpu_brand_string(void);
+const char* n_body_sim_pro_cpu_brand_string(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* HPCSIM_SIMD_CPU_H */
+#endif /* N_BODY_SIM_PRO_SIMD_CPU_H */

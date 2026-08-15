@@ -1,7 +1,7 @@
-#ifndef HPCSIM_SIMD_BACKEND_H
-#define HPCSIM_SIMD_BACKEND_H
+#ifndef N_BODY_SIM_PRO_SIMD_BACKEND_H
+#define N_BODY_SIM_PRO_SIMD_BACKEND_H
 
-#include "hpcsim/simd/cpu.h"
+#include "n_body_sim_pro/simd/cpu.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -16,16 +16,16 @@ extern "C" {
  * kernel coverage matrix.
  */
 
-typedef enum HpcsimSimdBackend {
-    HPCSIM_SIMD_BACKEND_SCALAR = 0,
-    HPCSIM_SIMD_BACKEND_SSE2,
-    HPCSIM_SIMD_BACKEND_AVX2,
-    HPCSIM_SIMD_BACKEND_AVX512,
-    HPCSIM_SIMD_BACKEND_NEON
-} HpcsimSimdBackend;
+typedef enum NBodySimProSimdBackend {
+    N_BODY_SIM_PRO_SIMD_BACKEND_SCALAR = 0,
+    N_BODY_SIM_PRO_SIMD_BACKEND_SSE2,
+    N_BODY_SIM_PRO_SIMD_BACKEND_AVX2,
+    N_BODY_SIM_PRO_SIMD_BACKEND_AVX512,
+    N_BODY_SIM_PRO_SIMD_BACKEND_NEON
+} NBodySimProSimdBackend;
 
 /* Human-readable backend name. Never returns NULL. */
-const char* hpcsim_simd_backend_string(HpcsimSimdBackend backend);
+const char* n_body_sim_pro_simd_backend_string(NBodySimProSimdBackend backend);
 
 /*
  * The best backend for which a real kernel exists, given the detected
@@ -33,10 +33,10 @@ const char* hpcsim_simd_backend_string(HpcsimSimdBackend backend);
  * scalar. SSE2/AVX-512/NEON kernels are planned but not yet implemented;
  * they are never selected until they exist.
  */
-HpcsimSimdBackend hpcsim_simd_best_available_backend(const HpcsimCpuFeatures* features);
+NBodySimProSimdBackend n_body_sim_pro_simd_best_available_backend(const NBodySimProCpuFeatures* features);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* HPCSIM_SIMD_BACKEND_H */
+#endif /* N_BODY_SIM_PRO_SIMD_BACKEND_H */

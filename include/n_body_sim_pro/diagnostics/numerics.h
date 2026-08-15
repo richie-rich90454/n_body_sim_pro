@@ -1,9 +1,9 @@
-#ifndef HPCSIM_DIAGNOSTICS_NUMERICS_H
-#define HPCSIM_DIAGNOSTICS_NUMERICS_H
+#ifndef N_BODY_SIM_PRO_DIAGNOSTICS_NUMERICS_H
+#define N_BODY_SIM_PRO_DIAGNOSTICS_NUMERICS_H
 
-#include "hpcsim/core/particle_system.h"
-#include "hpcsim/core/status.h"
-#include "hpcsim/physics/gravity.h"
+#include "n_body_sim_pro/core/particle_system.h"
+#include "n_body_sim_pro/core/status.h"
+#include "n_body_sim_pro/physics/gravity.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,7 +19,7 @@ extern "C" {
  * cost is acceptable (or computed approximately by a force tree).
  */
 
-typedef struct HpcsimDiagnosticsQuantities {
+typedef struct NBodySimProDiagnosticsQuantities {
     double kinetic_energy;
     double total_mass;
     double total_momentum_x;
@@ -31,7 +31,7 @@ typedef struct HpcsimDiagnosticsQuantities {
     double center_of_mass_x;
     double center_of_mass_y;
     double center_of_mass_z;
-} HpcsimDiagnosticsQuantities;
+} NBodySimProDiagnosticsQuantities;
 
 /*
  * Compute the O(N) global quantities for the current state.
@@ -41,9 +41,9 @@ typedef struct HpcsimDiagnosticsQuantities {
  *   angular momentum    : sum_i m_i (r_i x v_i)    (about the origin)
  *   center of mass      : sum_i m_i r_i / sum_i m_i
  */
-HpcsimStatus hpcsim_diagnostics_compute_global(const HpcsimParticleSystemView* view,
-                                               HpcsimDiagnosticsQuantities* quantities,
-                                               HpcsimError* error);
+NBodySimProStatus n_body_sim_pro_diagnostics_compute_global(const NBodySimProParticleSystemView* view,
+                                               NBodySimProDiagnosticsQuantities* quantities,
+                                               NBodySimProError* error);
 
 /*
  * Compute the O(N^2) reference potential energy
@@ -54,12 +54,12 @@ HpcsimStatus hpcsim_diagnostics_compute_global(const HpcsimParticleSystemView* v
  * small systems and correctness checks; do not call in the simulation loop
  * for large N.
  */
-HpcsimStatus hpcsim_diagnostics_compute_potential_energy(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity,
-    double* potential_energy, HpcsimError* error);
+NBodySimProStatus n_body_sim_pro_diagnostics_compute_potential_energy(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity,
+    double* potential_energy, NBodySimProError* error);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* HPCSIM_DIAGNOSTICS_NUMERICS_H */
+#endif /* N_BODY_SIM_PRO_DIAGNOSTICS_NUMERICS_H */

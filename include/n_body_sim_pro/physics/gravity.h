@@ -1,8 +1,8 @@
-#ifndef HPCSIM_PHYSICS_GRAVITY_H
-#define HPCSIM_PHYSICS_GRAVITY_H
+#ifndef N_BODY_SIM_PRO_PHYSICS_GRAVITY_H
+#define N_BODY_SIM_PRO_PHYSICS_GRAVITY_H
 
-#include "hpcsim/core/particle_system.h"
-#include "hpcsim/core/status.h"
+#include "n_body_sim_pro/core/particle_system.h"
+#include "n_body_sim_pro/core/status.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,14 +22,14 @@ extern "C" {
  * documented in docs/physics/gravity.md.
  */
 
-typedef struct HpcsimGravity {
+typedef struct NBodySimProGravity {
     double gravitational_constant;
     double softening_length;
     double softening_squared;
-} HpcsimGravity;
+} NBodySimProGravity;
 
 /* Initialize gravity parameters; precomputes softening^2. */
-void hpcsim_gravity_init(HpcsimGravity* gravity, double gravitational_constant,
+void n_body_sim_pro_gravity_init(NBodySimProGravity* gravity, double gravitational_constant,
                          double softening_length);
 
 /*
@@ -43,9 +43,9 @@ void hpcsim_gravity_init(HpcsimGravity* gravity, double gravitational_constant,
  * The accelerations of all particles are computed into the view's
  * acceleration arrays (not accumulated).
  */
-HpcsimStatus hpcsim_gravity_compute_acceleration_reference(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
-    HpcsimError* error);
+NBodySimProStatus n_body_sim_pro_gravity_compute_acceleration_reference(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error);
 
 /*
  * OpenMP-parallel all-pairs kernel.
@@ -55,9 +55,9 @@ HpcsimStatus hpcsim_gravity_compute_acceleration_reference(
  * on a given machine the results are bit-identical to the reference kernel
  * (deterministic parallel reduction). Requires OpenMP support in the build.
  */
-HpcsimStatus hpcsim_gravity_compute_acceleration_openmp(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
-    HpcsimError* error);
+NBodySimProStatus n_body_sim_pro_gravity_compute_acceleration_openmp(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error);
 
 /*
  * AVX2 SIMD all-pairs kernels.
@@ -71,16 +71,16 @@ HpcsimStatus hpcsim_gravity_compute_acceleration_openmp(
  * On CPUs without AVX2+FMA these functions degrade to the reference kernel,
  * so their symbols always exist.
  */
-HpcsimStatus hpcsim_gravity_compute_acceleration_avx2(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
-    HpcsimError* error);
+NBodySimProStatus n_body_sim_pro_gravity_compute_acceleration_avx2(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error);
 
-HpcsimStatus hpcsim_gravity_compute_acceleration_openmp_avx2(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
-    HpcsimError* error);
+NBodySimProStatus n_body_sim_pro_gravity_compute_acceleration_openmp_avx2(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* HPCSIM_PHYSICS_GRAVITY_H */
+#endif /* N_BODY_SIM_PRO_PHYSICS_GRAVITY_H */

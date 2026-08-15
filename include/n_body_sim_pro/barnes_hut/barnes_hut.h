@@ -1,9 +1,9 @@
-#ifndef HPCSIM_BARNES_HUT_BARNES_HUT_H
-#define HPCSIM_BARNES_HUT_BARNES_HUT_H
+#ifndef N_BODY_SIM_PRO_BARNES_HUT_BARNES_HUT_H
+#define N_BODY_SIM_PRO_BARNES_HUT_BARNES_HUT_H
 
-#include "hpcsim/core/particle_system.h"
-#include "hpcsim/core/status.h"
-#include "hpcsim/physics/gravity.h"
+#include "n_body_sim_pro/core/particle_system.h"
+#include "n_body_sim_pro/core/status.h"
+#include "n_body_sim_pro/physics/gravity.h"
 
 #include <stddef.h>
 
@@ -26,9 +26,9 @@ extern "C" {
  * validated against it in the test suite.
  */
 
-typedef struct HpcsimBarnesHutTree HpcsimBarnesHutTree;
+typedef struct NBodySimProBarnesHutTree NBodySimProBarnesHutTree;
 
-typedef struct HpcsimBarnesHutStats {
+typedef struct NBodySimProBarnesHutStats {
     size_t node_count;
     size_t leaf_count;
     size_t internal_node_count;
@@ -37,30 +37,30 @@ typedef struct HpcsimBarnesHutStats {
     size_t maximum_depth;
     double build_time_seconds;
     double evaluation_time_seconds;
-} HpcsimBarnesHutStats;
+} NBodySimProBarnesHutStats;
 
 /* Create a reusable Barnes-Hut force context. NULL on allocation failure. */
-HpcsimBarnesHutTree* hpcsim_barnes_hut_tree_create(HpcsimError* error);
+NBodySimProBarnesHutTree* n_body_sim_pro_barnes_hut_tree_create(NBodySimProError* error);
 
 /* Release the tree and its buffers. NULL-safe. */
-void hpcsim_barnes_hut_tree_destroy(HpcsimBarnesHutTree* tree);
+void n_body_sim_pro_barnes_hut_tree_destroy(NBodySimProBarnesHutTree* tree);
 
 /* The opening angle used by the next force evaluation. */
-void hpcsim_barnes_hut_tree_set_theta(HpcsimBarnesHutTree* tree, double theta);
-double hpcsim_barnes_hut_tree_theta(const HpcsimBarnesHutTree* tree);
+void n_body_sim_pro_barnes_hut_tree_set_theta(NBodySimProBarnesHutTree* tree, double theta);
+double n_body_sim_pro_barnes_hut_tree_theta(const NBodySimProBarnesHutTree* tree);
 
 /*
- * Force kernel for use with hpcsim_integrator_advance.
+ * Force kernel for use with n_body_sim_pro_integrator_advance.
  *
- * `context` must point to a HpcsimBarnesHutTree. The tree is rebuilt from
+ * `context` must point to a NBodySimProBarnesHutTree. The tree is rebuilt from
  * the current positions and the force evaluation is parallelized over query
  * particles with OpenMP. The traversal is serial per particle: exact
  * interactions for leaves and accepted approximations for distant cells.
  * Results match the reference kernel within tolerance (not bit-for-bit).
  */
-HpcsimStatus hpcsim_barnes_hut_compute_acceleration(const HpcsimParticleSystemView* view,
-                                                    const HpcsimGravity* gravity,
-                                                    void* context, HpcsimError* error);
+NBodySimProStatus n_body_sim_pro_barnes_hut_compute_acceleration(const NBodySimProParticleSystemView* view,
+                                                    const NBodySimProGravity* gravity,
+                                                    void* context, NBodySimProError* error);
 
 /*
  * AVX2 SIMD variants of the Barnes-Hut force evaluation.
@@ -72,23 +72,23 @@ HpcsimStatus hpcsim_barnes_hut_compute_acceleration(const HpcsimParticleSystemVi
  * tolerance (not bit-for-bit). On CPUs without AVX2 these functions degrade
  * to the scalar kernel.
  */
-HpcsimStatus hpcsim_barnes_hut_compute_acceleration_avx2(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
-    HpcsimError* error);
+NBodySimProStatus n_body_sim_pro_barnes_hut_compute_acceleration_avx2(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error);
 
-HpcsimStatus hpcsim_barnes_hut_compute_acceleration_openmp_avx2(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
-    HpcsimError* error);
+NBodySimProStatus n_body_sim_pro_barnes_hut_compute_acceleration_openmp_avx2(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error);
 
 /*
  * Read statistics from the most recent force evaluation. Returns 0 on
  * success, non-zero if `tree` or `stats` is NULL.
  */
-int hpcsim_barnes_hut_tree_stats(const HpcsimBarnesHutTree* tree,
-                                 HpcsimBarnesHutStats* stats);
+int n_body_sim_pro_barnes_hut_tree_stats(const NBodySimProBarnesHutTree* tree,
+                                 NBodySimProBarnesHutStats* stats);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* HPCSIM_BARNES_HUT_BARNES_HUT_H */
+#endif /* N_BODY_SIM_PRO_BARNES_HUT_BARNES_HUT_H */

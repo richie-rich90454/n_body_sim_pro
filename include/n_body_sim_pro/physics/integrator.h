@@ -1,9 +1,9 @@
-#ifndef HPCSIM_PHYSICS_INTEGRATOR_H
-#define HPCSIM_PHYSICS_INTEGRATOR_H
+#ifndef N_BODY_SIM_PRO_PHYSICS_INTEGRATOR_H
+#define N_BODY_SIM_PRO_PHYSICS_INTEGRATOR_H
 
-#include "hpcsim/core/particle_system.h"
-#include "hpcsim/core/status.h"
-#include "hpcsim/physics/gravity.h"
+#include "n_body_sim_pro/core/particle_system.h"
+#include "n_body_sim_pro/core/status.h"
+#include "n_body_sim_pro/physics/gravity.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,14 +28,14 @@ extern "C" {
  * first step. Each symplectic step recomputes accelerations once mid-step.
  */
 
-typedef enum HpcsimIntegratorType {
-    HPCSIM_INTEGRATOR_EULER,
-    HPCSIM_INTEGRATOR_LEAPFROG,
-    HPCSIM_INTEGRATOR_VELOCITY_VERLET
-} HpcsimIntegratorType;
+typedef enum NBodySimProIntegratorType {
+    N_BODY_SIM_PRO_INTEGRATOR_EULER,
+    N_BODY_SIM_PRO_INTEGRATOR_LEAPFROG,
+    N_BODY_SIM_PRO_INTEGRATOR_VELOCITY_VERLET
+} NBodySimProIntegratorType;
 
 /* Human-readable integrator name. Never returns NULL. */
-const char* hpcsim_integrator_type_string(HpcsimIntegratorType integrator);
+const char* n_body_sim_pro_integrator_type_string(NBodySimProIntegratorType integrator);
 
 /*
  * A force kernel: computes accelerations for every particle into the view's
@@ -44,9 +44,9 @@ const char* hpcsim_integrator_type_string(HpcsimIntegratorType integrator);
  * `context` carries algorithm-specific state (e.g. a Barnes-Hut tree) and
  * may be NULL for kernels that need none.
  */
-typedef HpcsimStatus (*HpcsimForceFunction)(const HpcsimParticleSystemView* view,
-                                            const HpcsimGravity* gravity,
-                                            void* context, HpcsimError* error);
+typedef NBodySimProStatus (*NBodySimProForceFunction)(const NBodySimProParticleSystemView* view,
+                                            const NBodySimProGravity* gravity,
+                                            void* context, NBodySimProError* error);
 
 /*
  * Advance the system by one timestep.
@@ -56,15 +56,15 @@ typedef HpcsimStatus (*HpcsimForceFunction)(const HpcsimParticleSystemView* view
  * `force_context`. The initial accelerations must be valid before the first
  * call for symplectic methods.
  */
-HpcsimStatus hpcsim_integrator_advance(HpcsimParticleSystemView* view,
-                                       const HpcsimGravity* gravity,
-                                       HpcsimIntegratorType integrator,
+NBodySimProStatus n_body_sim_pro_integrator_advance(NBodySimProParticleSystemView* view,
+                                       const NBodySimProGravity* gravity,
+                                       NBodySimProIntegratorType integrator,
                                        double timestep,
-                                       HpcsimForceFunction force_function,
-                                       void* force_context, HpcsimError* error);
+                                       NBodySimProForceFunction force_function,
+                                       void* force_context, NBodySimProError* error);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* HPCSIM_PHYSICS_INTEGRATOR_H */
+#endif /* N_BODY_SIM_PRO_PHYSICS_INTEGRATOR_H */

@@ -1,7 +1,7 @@
-#ifndef HPCSIM_MEMORY_MEMORY_ESTIMATE_H
-#define HPCSIM_MEMORY_MEMORY_ESTIMATE_H
+#ifndef N_BODY_SIM_PRO_MEMORY_MEMORY_ESTIMATE_H
+#define N_BODY_SIM_PRO_MEMORY_MEMORY_ESTIMATE_H
 
-#include "hpcsim/core/status.h"
+#include "n_body_sim_pro/core/status.h"
 
 #include <stddef.h>
 
@@ -19,25 +19,25 @@ extern "C" {
  * allocated.
  */
 
-typedef struct HpcsimMemoryEstimate {
+typedef struct NBodySimProMemoryEstimate {
     size_t particle_bytes;
     size_t tree_bytes;
     size_t workspace_bytes;
     size_t total_bytes;
-} HpcsimMemoryEstimate;
+} NBodySimProMemoryEstimate;
 
 /*
  * Estimate the memory a simulation of `particle_count` particles will need.
  * `barnes_hut_enabled` includes the octree node array (up to 2N-1 nodes).
- * Returns HPCSIM_STATUS_OK and fills *estimate.
+ * Returns N_BODY_SIM_PRO_STATUS_OK and fills *estimate.
  */
-HpcsimStatus hpcsim_memory_estimate_simulation(size_t particle_count,
+NBodySimProStatus n_body_sim_pro_memory_estimate_simulation(size_t particle_count,
                                                int barnes_hut_enabled,
-                                               HpcsimMemoryEstimate* estimate,
-                                               HpcsimError* error);
+                                               NBodySimProMemoryEstimate* estimate,
+                                               NBodySimProError* error);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* HPCSIM_MEMORY_MEMORY_ESTIMATE_H */
+#endif /* N_BODY_SIM_PRO_MEMORY_MEMORY_ESTIMATE_H */
