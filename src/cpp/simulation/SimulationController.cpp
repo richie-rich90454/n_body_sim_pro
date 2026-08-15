@@ -38,8 +38,13 @@ void SimulationController::apply_preset(HpcsimSimulationPreset preset,
 
     HpcsimError error;
     hpcsim_error_clear(&error);
-    HpcsimStatus status = hpcsim_preset_generate(
-        replacement.handle(), preset, &parameters, &error);
+    HpcsimStatus status;
+    if (use_parallel_generation) {
+        status = hpcsim_preset_generate_parallel(replacement.handle(), preset, &parameters,
+                                                 &error);
+    } else {
+        status = hpcsim_preset_generate(replacement.handle(), preset, &parameters, &error);
+    }
     if (status != HPCSIM_STATUS_OK) {
         throw std::runtime_error(std::string("SimulationController: preset generation "
                                              "failed: ") +
