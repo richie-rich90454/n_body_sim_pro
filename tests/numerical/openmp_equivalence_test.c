@@ -28,7 +28,8 @@ static HpcsimParticleSystem* make_random_system(size_t particle_count, uint64_t 
 }
 
 static void test_openmp_matches_reference(void) {
-    const size_t particle_count = 512;
+    enum { PARTICLE_COUNT = 512 };
+    const size_t particle_count = PARTICLE_COUNT;
     HpcsimParticleSystem* particle_system = make_random_system(particle_count, 42);
     HPCSIM_ASSERT(particle_system != NULL);
     if (particle_system == NULL) {
@@ -42,8 +43,8 @@ static void test_openmp_matches_reference(void) {
     HpcsimGravity gravity;
     hpcsim_gravity_init(&gravity, 1.0, 0.02);
 
-    double reference[3 * particle_count];
-    double parallel[3 * particle_count];
+    double reference[3 * PARTICLE_COUNT];
+    double parallel[3 * PARTICLE_COUNT];
 
     hpcsim_gravity_compute_acceleration_reference(&view, &gravity, NULL, &error);
     for (size_t i = 0; i < particle_count; ++i) {
