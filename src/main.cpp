@@ -1,8 +1,16 @@
+#include "application/Application.hpp"
+
 #include <cstdio>
+#include <exception>
 
 int main(int argc, char** argv) {
     (void)argc;
     (void)argv;
-    std::printf("n_body_sim_pro: building.\n");
-    return 0;
+    try {
+        hpcsim::application::Application application;
+        return application.run();
+    } catch (const std::exception& error) {
+        std::fprintf(stderr, "HPCSim: fatal error: %s\n", error.what());
+        return 1;
+    }
 }
