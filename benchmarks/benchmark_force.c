@@ -30,7 +30,7 @@ typedef struct BenchmarkOptions {
     size_t particle_count;
     int steps;
     const char* threads_list;
-    int use_openmp;
+    const char* algorithm;
 } BenchmarkOptions;
 
 static double wall_time_seconds(void) {
@@ -42,7 +42,7 @@ static double wall_time_seconds(void) {
 static void print_usage(const char* program_name) {
     fprintf(stderr,
             "Usage: %s --particles N --steps S [--threads T1,T2,..] [--algorithm "
-            "reference|openmp]\n",
+            "reference|openmp|avx2|openmp_avx2]\n",
             program_name);
 }
 
@@ -51,7 +51,7 @@ static int parse_arguments(int argc, char** argv, BenchmarkOptions* options) {
     options->particle_count = 10000;
     options->steps = 5;
     options->threads_list = "1";
-    options->use_openmp = 1;
+    options->algorithm = "openmp";
 
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "--particles") == 0 && i + 1 < argc) {
@@ -61,7 +61,7 @@ static int parse_arguments(int argc, char** argv, BenchmarkOptions* options) {
         } else if (strcmp(argv[i], "--threads") == 0 && i + 1 < argc) {
             options->threads_list = argv[++i];
         } else if (strcmp(argv[i], "--algorithm") == 0 && i + 1 < argc) {
-            options->use_openmp = strcmp(argv[++i], "openmp") == 0;
+            options->algorithm = argv[++i];
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             print_usage(argv[0]);
             exit(0);
@@ -76,16 +76,20 @@ static int parse_arguments(int argc, char** argv, BenchmarkOptions* options) {
 
 static double measure_force_evaluation(const HpcsimGravity* gravity,
                                        HpcsimParticleSystemView* view, int steps,
-                                       int use_openmp) {
+                                       const char* algorithm) {
     HpcsimError error;
     hpcsim_error_clear(&error);
     const double start = wall_time_seconds();
     for (int step = 0; step < steps; ++step) {
-        HpcsimStatus status;
-        if (use_openmp) {
-            status = hpcsim_gravity_compute_acceleration_openmp(view, gravity, &error);
-        } else {
+        HpcsimStatus status = HPCSIM_STATUS_INVALID_ARGUMENT;
+        if (strcmp(algorithm, "reference") == 0) {
             status = hpcsim_gravity_compute_acceleration_reference(view, gravity, &error);
+        } else if (strcmp(algorithm, "openmp") == 0) {
+            status = hpcsim_gravity_compute_acceleration_openmp(view, gravity, &error);
+        } else if (strcmp(algorithm, "avx2") == 0) {
+            status = hpcsim_gravity_compute_acceleration_avx2(view, gravity, &error);
+        } else if (strcmp(algorithm, "openmp_avx2") == 0) {
+            status = hpcsim_gravity_compute_acceleration_openmp_avx2(view, gravity, &error);
         }
         if (status != HPCSIM_STATUS_OK) {
             fprintf(stderr, "force evaluation failed: %s\n", hpcsim_status_string(status));
@@ -125,7 +129,7 @@ int main(int argc, char** argv) {
     hpcsim_particle_system_view(particle_system, &view, &error);
 
     printf("particles=%zu steps=%d algorithm=%s\n", options.particle_count,
-           options.steps, options.use_openmp ? "openmp" : "reference");
+           options.steps, options.algorithm);
 
     double baseline = 0.0;
     char csv_line[1024];
@@ -145,14 +149,14 @@ int main(int argc, char** argv) {
         token_buffer[token_length] = '\0';
 
         const int thread_count = atoi(token_buffer);
-        if (options.use_openmp) {
+        const int uses_threads = strstr(options.algorithm, "openmp") != NULL;
+        if (uses_threads) {
             hpcsim_threading_set_thread_count(thread_count);
         }
-        const int active_threads =
-            options.use_openmp ? hpcsim_threading_thread_count() : 1;
+        const int active_threads = uses_threads ? hpcsim_threading_thread_count() : 1;
 
         const double seconds_per_evaluation = measure_force_evaluation(
-            &gravity, &view, options.steps, options.use_openmp);
+            &gravity, &view, options.steps, options.algorithm);
         if (seconds_per_evaluation < 0.0) {
             hpcsim_particle_system_destroy(particle_system);
             return 1;
