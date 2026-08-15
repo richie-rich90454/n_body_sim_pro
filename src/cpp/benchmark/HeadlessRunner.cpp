@@ -24,6 +24,8 @@ int run_headless(const HeadlessOptions& options, HeadlessReport& report) {
     simulation.barnes_hut_theta = options.theta;
     simulation.timestep = options.timestep;
     simulation.running = false;
+    /* Large systems use parallel first-touch generation. */
+    simulation.use_parallel_generation = options.particle_count >= 100000;
 
     try {
         simulation.apply_preset(options.preset, options.particle_count,
