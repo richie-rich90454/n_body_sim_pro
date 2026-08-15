@@ -25,6 +25,16 @@ int UserInterface::draw(SimulationController& simulation, rendering::Camera& cam
         if (ImGui::CollapsingHeader("Performance", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Text("Frame time : %.2f ms", frame_duration_ms);
             ImGui::Text("Frame rate : %.1f FPS", frame_rate);
+            const HpcsimCpuFeatures cpu_features = hpcsim_cpu_detect_features();
+            ImGui::Text("SIMD       : %s",
+                        hpcsim_simd_backend_string(simulation.simd_backend()));
+            ImGui::Text("CPU        : %s", hpcsim_cpu_brand_string());
+            ImGui::Text("AVX2       : %s",
+                        cpu_features.has_avx2 ? "available" : "unavailable");
+            ImGui::Text("AVX-512    : %s",
+                        cpu_features.has_avx512_foundation ? "available" : "unavailable");
+            ImGui::Text("NEON       : %s",
+                        cpu_features.has_neon ? "available" : "unavailable");
         }
         if (ImGui::CollapsingHeader("Camera")) {
             const rendering::Vec3 target = camera.target();
