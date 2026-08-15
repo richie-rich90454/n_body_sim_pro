@@ -1,4 +1,5 @@
 #include "hpcsim/barnes_hut/barnes_hut.h"
+#include "barnes_hut_internal.h"
 
 #include "hpcsim/memory/allocator.h"
 
@@ -18,67 +19,13 @@ static double wall_time_seconds(void) {
     return (double)ts.tv_sec + (double)ts.tv_nsec * 1.0e-9;
 }
 
-/*
- * Barnes-Hut octree in contiguous storage.
- *
- * Nodes live in one growable array; children are referenced by integer
- * indices (per spec, no per-node heap allocation). Nodes are appended in
- * creation order, so a node's children always have higher indices than the
- * node itself; this makes a reverse-index pass a valid post-order traversal
- * for the center-of-mass pass.
- *
- * A node is a leaf when it stores a particle index; an internal node stores
- * a center of mass and total mass; an empty node has particle_count 0.
- */
+double hpcsim_barnes_hut_wall_time_seconds(void) {
+    return wall_time_seconds();
+}
 
 enum { BARNES_HUT_MAX_TREE_DEPTH = 128 };
 
 #define BARNES_HUT_DEFAULT_THETA 0.7
-
-typedef struct BarnesHutNode {
-    int32_t child_indices[8];
-    int32_t particle_index;
-    int32_t particle_count;
-    double center_of_mass_x;
-    double center_of_mass_y;
-    double center_of_mass_z;
-    double total_mass;
-} BarnesHutNode;
-
-struct HpcsimBarnesHutTree {
-    BarnesHutNode* nodes;
-    size_t node_capacity;
-    size_t node_count;
-    double root_center_x;
-    double root_center_y;
-    double root_center_z;
-    double root_half_size;
-    double theta;
-    const HpcsimParticleSystemView* build_view;
-    HpcsimBarnesHutStats stats;
-
-    /*
-     * Morton-order reordering workspace.
-     *
-     * Particles are sorted by a spatial (Z-order) key so that the tree build
-     * and force traversal touch nodes sequentially instead of at random:
-     * spatially near particles share tree paths. The engine's own arrays
-     * stay in the caller's order; the permutation maps between them.
-     */
-    uint64_t* morton_keys;
-    size_t* permutation;
-    size_t* sort_workspace;
-    size_t* counting_workspace;
-    double* reordered_positions_x;
-    double* reordered_positions_y;
-    double* reordered_positions_z;
-    double* reordered_masses;
-    double* reordered_accelerations_x;
-    double* reordered_accelerations_y;
-    double* reordered_accelerations_z;
-    HpcsimParticleSystemView reordered_view;
-    size_t reordered_count;
-};
 
 HpcsimBarnesHutTree* hpcsim_barnes_hut_tree_create(HpcsimError* error) {
     HpcsimBarnesHutTree* tree = (HpcsimBarnesHutTree*)hpcsim_allocate(
@@ -492,7 +439,7 @@ static int reorder_particles_by_morton(HpcsimBarnesHutTree* tree,
     return 1;
 }
 
-static HpcsimStatus build_tree(HpcsimBarnesHutTree* tree,
+HpcsimStatus hpcsim_barnes_hut_build_tree(HpcsimBarnesHutTree* tree,
                                const HpcsimParticleSystemView* view,
                                HpcsimError* error) {
     const size_t particle_count = view->particle_count;
@@ -599,7 +546,7 @@ typedef struct TraversalEntry {
  * statistics so the OpenMP loop can reduce per-thread counts without
  * synchronizing the shared tree.
  */
-static void evaluate_particle(const HpcsimBarnesHutTree* tree,
+void hpcsim_barnes_hut_evaluate_particle_scalar(const HpcsimBarnesHutTree* tree,
                               const HpcsimParticleSystemView* view,
                               const HpcsimGravity* gravity, size_t query_particle,
                               double* acceleration_x, double* acceleration_y,
@@ -699,7 +646,7 @@ HpcsimStatus hpcsim_barnes_hut_compute_acceleration(const HpcsimParticleSystemVi
     }
 
     const double build_start = wall_time_seconds();
-    HpcsimStatus status = build_tree(tree, view, error);
+    HpcsimStatus status = hpcsim_barnes_hut_build_tree(tree, view, error);
     if (status != HPCSIM_STATUS_OK) {
         return status;
     }
@@ -722,7 +669,7 @@ HpcsimStatus hpcsim_barnes_hut_compute_acceleration(const HpcsimParticleSystemVi
         double acceleration_x = 0.0;
         double acceleration_y = 0.0;
         double acceleration_z = 0.0;
-        evaluate_particle(tree, reordered, gravity, (size_t)i, &acceleration_x,
+        hpcsim_barnes_hut_evaluate_particle_scalar(tree, reordered, gravity, (size_t)i, &acceleration_x,
                           &acceleration_y, &acceleration_z, &approximations,
                           &exact_interactions);
         accelerations_x[i] = acceleration_x;
@@ -733,19 +680,27 @@ HpcsimStatus hpcsim_barnes_hut_compute_acceleration(const HpcsimParticleSystemVi
     }
     const double evaluation_finish = wall_time_seconds();
 
-    /* Scatter the reordered accelerations back to the caller's array order. */
-    for (size_t i = 0; i < particle_count; ++i) {
-        const size_t original = tree->permutation[i];
-        view->accelerations_x[original] = accelerations_x[i];
-        view->accelerations_y[original] = accelerations_y[i];
-        view->accelerations_z[original] = accelerations_z[i];
-    }
+    hpcsim_barnes_hut_scatter_accelerations(tree, view);
 
     tree->stats.accepted_approximations = total_approximations;
     tree->stats.exact_interactions = total_exact_interactions;
     tree->stats.build_time_seconds = build_finish - build_start;
     tree->stats.evaluation_time_seconds = evaluation_finish - evaluation_start;
     return HPCSIM_STATUS_OK;
+}
+
+void hpcsim_barnes_hut_scatter_accelerations(const HpcsimBarnesHutTree* tree,
+                                             const HpcsimParticleSystemView* view) {
+    const size_t particle_count = view->particle_count;
+    const double* const accelerations_x = tree->reordered_view.accelerations_x;
+    const double* const accelerations_y = tree->reordered_view.accelerations_y;
+    const double* const accelerations_z = tree->reordered_view.accelerations_z;
+    for (size_t i = 0; i < particle_count; ++i) {
+        const size_t original = tree->permutation[i];
+        view->accelerations_x[original] = accelerations_x[i];
+        view->accelerations_y[original] = accelerations_y[i];
+        view->accelerations_z[original] = accelerations_z[i];
+    }
 }
 
 int hpcsim_barnes_hut_tree_stats(const HpcsimBarnesHutTree* tree,
