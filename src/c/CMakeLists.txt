@@ -17,12 +17,15 @@ add_library(${HPCSIM_C_LIBRARY} STATIC
     simd/cpu.c
     simd/backend.c
     simd/force_avx2.c
+    simd/barnes_hut_avx2.c
     threading/threading.c)
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|i686" AND CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
-    set_source_files_properties(simd/force_avx2.c PROPERTIES COMPILE_OPTIONS "-mavx2;-mfma")
+    set_source_files_properties(simd/force_avx2.c simd/barnes_hut_avx2.c
+        PROPERTIES COMPILE_OPTIONS "-mavx2;-mfma")
 elseif(MSVC)
-    set_source_files_properties(simd/force_avx2.c PROPERTIES COMPILE_OPTIONS "/arch:AVX2")
+    set_source_files_properties(simd/force_avx2.c simd/barnes_hut_avx2.c
+        PROPERTIES COMPILE_OPTIONS "/arch:AVX2")
 endif()
 
 target_include_directories(${HPCSIM_C_LIBRARY} PUBLIC
