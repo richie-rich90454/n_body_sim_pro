@@ -1,0 +1,38 @@
+# Build directories
+build/
+cmake-build-*/
+out/
+bin/
+obj/
+
+# IDE / editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Compiled artifacts
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dll
+*.dylib
+*.exe
+*.pdb
+*.ilk
+
+# Test / benchmark output
+*.log
+benchmarks/results/*.json
+tests/**/*.out
+
+# Runtime data
+*.hpcs
+checkpoints/
+runs/
+
+# OS noise
+.DS_Store
+Thumbs.db
