@@ -10,6 +10,7 @@ add_library(${HPCSIM_C_LIBRARY} STATIC
     diagnostics/numerics.c
     generation/random.c
     generation/presets.c
+    barnes_hut/barnes_hut.c
     simd/cpu.c
     simd/backend.c
     simd/force_avx2.c
