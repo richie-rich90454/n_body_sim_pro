@@ -54,6 +54,10 @@ void print_usage(const char* program_name) {
     std::printf("                        open_cluster, globular_cluster, spiral_galaxy,\n");
     std::printf("                        elliptical_galaxy, galaxy_collision,\n");
     std::printf("                        triple_galaxy\n");
+    std::printf("  %s resume FILE [--steps S] [--threads T]\n", program_name);
+    std::printf("                        continue a checkpoint headless\n");
+    std::printf("  %s save FILE [--particles N] [--preset P] [--seed S]\n", program_name);
+    std::printf("                        write a fresh preset as a checkpoint\n");
 }
 
 bool parse_unsigned(const char* text, unsigned long long* value) {
@@ -164,11 +168,84 @@ int main(int argc, char** argv) {
         if (argc >= 2 && std::strcmp(argv[1], "benchmark") == 0) {
             return run_benchmark_command(argc, argv);
         }
-        if (argc >= 2 && (std::strcmp(argv[1], "--help") == 0 ||
-                          std::strcmp(argv[1], "-h") == 0)) {
-            print_usage(argv[0]);
-            return 0;
+    if (argc >= 2 && std::strcmp(argv[1], "resume") == 0) {
+        if (argc < 3) {
+            std::fprintf(stderr, "resume: missing checkpoint path\n");
+            return 1;
         }
+        int steps = 100;
+        int threads = 0;
+        for (int i = 3; i < argc; ++i) {
+            if (std::strcmp(argv[i], "--steps") == 0 && i + 1 < argc) {
+                steps = std::atoi(argv[++i]);
+            } else if (std::strcmp(argv[i], "--threads") == 0 && i + 1 < argc) {
+                threads = std::atoi(argv[++i]);
+            } else {
+                std::fprintf(stderr, "resume: unknown argument %s\n", argv[i]);
+                return 1;
+            }
+        }
+        hpcsim::benchmark::HeadlessReport report;
+        const int status = hpcsim::benchmark::resume_checkpoint(argv[2], steps, threads,
+                                                                report);
+        if (status == 0) {
+            std::printf("Resumed %zu steps from %s\n", (size_t)steps, argv[2]);
+            std::printf("Avg step : %.3f ms\n", report.average_step_ms);
+            std::printf("Energy drift : %.6e\n", report.energy_drift);
+            std::printf("Momentum error : %.6e\n", report.momentum_error);
+        }
+        return status;
+    }
+    if (argc >= 2 && std::strcmp(argv[1], "save") == 0) {
+        if (argc < 3) {
+            std::fprintf(stderr, "save: missing checkpoint path\n");
+            return 1;
+        }
+        const char* path = argv[2];
+        std::size_t particle_count = 65536;
+        std::uint64_t seed = 42;
+        HpcsimSimulationPreset preset = HPCSIM_PRESET_GALAXY_COLLISION;
+        for (int i = 3; i < argc; ++i) {
+            if (std::strcmp(argv[i], "--particles") == 0 && i + 1 < argc) {
+                particle_count = (std::size_t)std::strtoull(argv[++i], nullptr, 10);
+            } else if (std::strcmp(argv[i], "--seed") == 0 && i + 1 < argc) {
+                seed = (std::uint64_t)std::strtoull(argv[++i], nullptr, 10);
+            } else if (std::strcmp(argv[i], "--preset") == 0 && i + 1 < argc) {
+                const char* value = argv[++i];
+                bool found = false;
+                for (int p = 0; p < HPCSIM_PRESET_COUNT; ++p) {
+                    if (std::strcmp(value,
+                                    hpcsim_preset_string((HpcsimSimulationPreset)p)) == 0) {
+                        preset = (HpcsimSimulationPreset)p;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    std::fprintf(stderr, "save: unknown preset %s\n", value);
+                    return 1;
+                }
+            } else {
+                std::fprintf(stderr, "save: unknown argument %s\n", argv[i]);
+                return 1;
+            }
+        }
+
+        hpcsim::SimulationController simulation;
+        try {
+            simulation.apply_preset(preset, particle_count, seed);
+            simulation.save_checkpoint(path);
+        } catch (const std::exception& error) {
+            std::fprintf(stderr, "save: %s\n", error.what());
+            return 1;
+        }
+        return 0;
+    }
+    if (argc >= 2 && (std::strcmp(argv[1], "--help") == 0 ||
+                      std::strcmp(argv[1], "-h") == 0)) {
+        print_usage(argv[0]);
+        return 0;
+    }
         hpcsim::application::Application application;
         return application.run();
     } catch (const std::exception& error) {
