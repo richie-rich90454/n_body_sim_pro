@@ -22,6 +22,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Options
 # ---------------------------------------------------------------------------
 option(HPCSIM_ENABLE_OPENMP "Enable OpenMP shared-memory parallelism" ON)
+option(HPCSIM_ENABLE_MPI "Enable MPI distributed execution when an MPI implementation is found" ON)
 option(HPCSIM_ENABLE_DEVELOPER_MODE "Enable developer instrumentation (allocation tracking, telemetry)" ON)
 option(HPCSIM_BUILD_TESTS "Build the test suite" ON)
 option(HPCSIM_BUILD_BENCHMARKS "Build the benchmark suite" ON)
