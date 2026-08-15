@@ -56,6 +56,28 @@ struct HpcsimBarnesHutTree {
     double theta;
     const HpcsimParticleSystemView* build_view;
     HpcsimBarnesHutStats stats;
+
+    /*
+     * Morton-order reordering workspace.
+     *
+     * Particles are sorted by a spatial (Z-order) key so that the tree build
+     * and force traversal touch nodes sequentially instead of at random:
+     * spatially near particles share tree paths. The engine's own arrays
+     * stay in the caller's order; the permutation maps between them.
+     */
+    uint64_t* morton_keys;
+    size_t* permutation;
+    size_t* sort_workspace;
+    size_t* counting_workspace;
+    double* reordered_positions_x;
+    double* reordered_positions_y;
+    double* reordered_positions_z;
+    double* reordered_masses;
+    double* reordered_accelerations_x;
+    double* reordered_accelerations_y;
+    double* reordered_accelerations_z;
+    HpcsimParticleSystemView reordered_view;
+    size_t reordered_count;
 };
 
 HpcsimBarnesHutTree* hpcsim_barnes_hut_tree_create(HpcsimError* error) {
@@ -76,6 +98,19 @@ HpcsimBarnesHutTree* hpcsim_barnes_hut_tree_create(HpcsimError* error) {
     tree->root_half_size = 1.0;
     tree->theta = BARNES_HUT_DEFAULT_THETA;
     tree->build_view = NULL;
+    tree->morton_keys = NULL;
+    tree->permutation = NULL;
+    tree->sort_workspace = NULL;
+    tree->counting_workspace = NULL;
+    tree->reordered_positions_x = NULL;
+    tree->reordered_positions_y = NULL;
+    tree->reordered_positions_z = NULL;
+    tree->reordered_masses = NULL;
+    tree->reordered_accelerations_x = NULL;
+    tree->reordered_accelerations_y = NULL;
+    tree->reordered_accelerations_z = NULL;
+    memset(&tree->reordered_view, 0, sizeof(tree->reordered_view));
+    tree->reordered_count = 0;
     memset(&tree->stats, 0, sizeof(tree->stats));
     return tree;
 }
@@ -84,6 +119,17 @@ void hpcsim_barnes_hut_tree_destroy(HpcsimBarnesHutTree* tree) {
     if (tree == NULL) {
         return;
     }
+    hpcsim_deallocate(tree->morton_keys, __FILE__, __LINE__);
+    hpcsim_deallocate(tree->permutation, __FILE__, __LINE__);
+    hpcsim_deallocate(tree->sort_workspace, __FILE__, __LINE__);
+    hpcsim_deallocate(tree->counting_workspace, __FILE__, __LINE__);
+    hpcsim_deallocate(tree->reordered_positions_x, __FILE__, __LINE__);
+    hpcsim_deallocate(tree->reordered_positions_y, __FILE__, __LINE__);
+    hpcsim_deallocate(tree->reordered_positions_z, __FILE__, __LINE__);
+    hpcsim_deallocate(tree->reordered_masses, __FILE__, __LINE__);
+    hpcsim_deallocate(tree->reordered_accelerations_x, __FILE__, __LINE__);
+    hpcsim_deallocate(tree->reordered_accelerations_y, __FILE__, __LINE__);
+    hpcsim_deallocate(tree->reordered_accelerations_z, __FILE__, __LINE__);
     hpcsim_deallocate(tree->nodes, __FILE__, __LINE__);
     hpcsim_deallocate(tree, __FILE__, __LINE__);
 }
@@ -289,12 +335,167 @@ static size_t compute_maximum_depth(const HpcsimBarnesHutTree* tree, size_t node
     return maximum_child_depth + 1;
 }
 
+/* Quantize a coordinate into 21 bits within [center - half, center + half). */
+static uint64_t morton_axis_code(double value, double center, double half_size) {
+    double normalized = (value - center) / (2.0 * half_size) + 0.5;
+    if (normalized < 0.0) {
+        normalized = 0.0;
+    } else if (normalized >= 1.0) {
+        normalized = 1.0 - 1.0e-15;
+    }
+    return (uint64_t)(normalized * 2097152.0); /* 2^21 */
+}
+
+/* Interleave the three 21-bit axis codes into a 63-bit Z-order key. */
+static uint64_t morton_key(uint64_t x, uint64_t y, uint64_t z) {
+    uint64_t key = 0;
+    for (int bit = 0; bit < 21; ++bit) {
+        key |= ((x >> bit) & 1) << (3 * bit);
+        key |= ((y >> bit) & 1) << (3 * bit + 1);
+        key |= ((z >> bit) & 1) << (3 * bit + 2);
+    }
+    return key;
+}
+
+/*
+ * LSD radix sort of `permutation` by morton_keys using 21-bit digits
+ * (3 passes). Stable, O(N), cache-friendly; the counting workspace needs
+ * 2^21 entries.
+ */
+static void radix_sort_morton_keys(HpcsimBarnesHutTree* tree, size_t count) {
+    for (int pass = 0; pass < 3; ++pass) {
+        const unsigned int shift = (unsigned int)(21 * pass);
+        const size_t mask = (1u << 21) - 1;
+
+        memset(tree->counting_workspace, 0, (1u << 21) * sizeof(size_t));
+        for (size_t i = 0; i < count; ++i) {
+            const size_t digit =
+                (size_t)((tree->morton_keys[tree->permutation[i]] >> shift) & mask);
+            ++tree->counting_workspace[digit];
+        }
+        size_t cumulative = 0;
+        for (size_t digit = 0; digit < (1u << 21); ++digit) {
+            const size_t digit_count = tree->counting_workspace[digit];
+            tree->counting_workspace[digit] = cumulative;
+            cumulative += digit_count;
+        }
+        for (size_t i = 0; i < count; ++i) {
+            const size_t permutation = tree->permutation[i];
+            const size_t digit =
+                (size_t)((tree->morton_keys[permutation] >> shift) & mask);
+            tree->sort_workspace[tree->counting_workspace[digit]++] = permutation;
+        }
+        size_t* temporary = tree->permutation;
+        tree->permutation = tree->sort_workspace;
+        tree->sort_workspace = temporary;
+    }
+}
+
+static int ensure_reorder_workspace(HpcsimBarnesHutTree* tree, size_t count,
+                                    HpcsimError* error) {
+    if (count <= tree->reordered_count) {
+        return 1;
+    }
+    tree->reordered_count = count;
+
+    const size_t key_bytes = count * sizeof(uint64_t);
+    const size_t index_bytes = count * sizeof(size_t);
+    const size_t double_bytes = count * sizeof(double);
+
+    uint64_t* keys = (uint64_t*)hpcsim_reallocate(tree->morton_keys, key_bytes, __FILE__,
+                                                  __LINE__);
+    size_t* permutation = (size_t*)hpcsim_reallocate(tree->permutation, index_bytes,
+                                                     __FILE__, __LINE__);
+    size_t* sort_workspace = (size_t*)hpcsim_reallocate(tree->sort_workspace, index_bytes,
+                                                        __FILE__, __LINE__);
+    size_t* counting = (size_t*)hpcsim_reallocate(tree->counting_workspace,
+                                                  (1u << 21) * sizeof(size_t), __FILE__,
+                                                  __LINE__);
+    double* px = (double*)hpcsim_reallocate(tree->reordered_positions_x, double_bytes,
+                                            __FILE__, __LINE__);
+    double* py = (double*)hpcsim_reallocate(tree->reordered_positions_y, double_bytes,
+                                            __FILE__, __LINE__);
+    double* pz = (double*)hpcsim_reallocate(tree->reordered_positions_z, double_bytes,
+                                            __FILE__, __LINE__);
+    double* masses = (double*)hpcsim_reallocate(tree->reordered_masses, double_bytes,
+                                                __FILE__, __LINE__);
+    double* ax = (double*)hpcsim_reallocate(tree->reordered_accelerations_x, double_bytes,
+                                            __FILE__, __LINE__);
+    double* ay = (double*)hpcsim_reallocate(tree->reordered_accelerations_y, double_bytes,
+                                            __FILE__, __LINE__);
+    double* az = (double*)hpcsim_reallocate(tree->reordered_accelerations_z, double_bytes,
+                                            __FILE__, __LINE__);
+
+    if (keys == NULL || permutation == NULL || sort_workspace == NULL || counting == NULL ||
+        px == NULL || py == NULL || pz == NULL || masses == NULL || ax == NULL ||
+        ay == NULL || az == NULL) {
+        hpcsim_error_set(error, HPCSIM_STATUS_OUT_OF_MEMORY, __FILE__, __LINE__,
+                         "failed to allocate Barnes-Hut reorder workspace");
+        return 0;
+    }
+    tree->morton_keys = keys;
+    tree->permutation = permutation;
+    tree->sort_workspace = sort_workspace;
+    tree->counting_workspace = counting;
+    tree->reordered_positions_x = px;
+    tree->reordered_positions_y = py;
+    tree->reordered_positions_z = pz;
+    tree->reordered_masses = masses;
+    tree->reordered_accelerations_x = ax;
+    tree->reordered_accelerations_y = ay;
+    tree->reordered_accelerations_z = az;
+    return 1;
+}
+
+/*
+ * Reorder the caller's particle arrays into Morton (Z-order) sequence.
+ * `permutation[i]` is the original index of the particle that now sits at
+ * reordered position i, so reordered_position[i] = view->position[permutation[i]].
+ */
+static int reorder_particles_by_morton(HpcsimBarnesHutTree* tree,
+                                       const HpcsimParticleSystemView* view,
+                                       HpcsimError* error) {
+    const size_t count = view->particle_count;
+    if (!ensure_reorder_workspace(tree, count, error)) {
+        return 0;
+    }
+    for (size_t i = 0; i < count; ++i) {
+        tree->permutation[i] = i;
+        const uint64_t x = morton_axis_code(view->positions_x[i], tree->root_center_x,
+                                            tree->root_half_size);
+        const uint64_t y = morton_axis_code(view->positions_y[i], tree->root_center_y,
+                                            tree->root_half_size);
+        const uint64_t z = morton_axis_code(view->positions_z[i], tree->root_center_z,
+                                            tree->root_half_size);
+        tree->morton_keys[i] = morton_key(x, y, z);
+    }
+    radix_sort_morton_keys(tree, count);
+
+    for (size_t i = 0; i < count; ++i) {
+        const size_t original = tree->permutation[i];
+        tree->reordered_positions_x[i] = view->positions_x[original];
+        tree->reordered_positions_y[i] = view->positions_y[original];
+        tree->reordered_positions_z[i] = view->positions_z[original];
+        tree->reordered_masses[i] = view->masses[original];
+    }
+    tree->reordered_view.particle_count = count;
+    tree->reordered_view.positions_x = tree->reordered_positions_x;
+    tree->reordered_view.positions_y = tree->reordered_positions_y;
+    tree->reordered_view.positions_z = tree->reordered_positions_z;
+    tree->reordered_view.masses = tree->reordered_masses;
+    tree->reordered_view.accelerations_x = tree->reordered_accelerations_x;
+    tree->reordered_view.accelerations_y = tree->reordered_accelerations_y;
+    tree->reordered_view.accelerations_z = tree->reordered_accelerations_z;
+    tree->reordered_view.velocities_x = NULL;
+    tree->reordered_view.velocities_y = NULL;
+    tree->reordered_view.velocities_z = NULL;
+    return 1;
+}
+
 static HpcsimStatus build_tree(HpcsimBarnesHutTree* tree,
                                const HpcsimParticleSystemView* view,
                                HpcsimError* error) {
     const size_t particle_count = view->particle_count;
-    tree->build_view = view;
-    tree->node_count = 0;
 
     if (particle_count == 0) {
         hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
@@ -334,7 +535,18 @@ static HpcsimStatus build_tree(HpcsimBarnesHutTree* tree,
     tree->root_center_z = 0.5 * (minimum_z + maximum_z);
     tree->root_half_size = half_size;
 
-    if (!ensure_node_capacity(tree, 1)) {
+    /* Reorder particles by Morton key; the build and evaluation then read the
+     * cache-friendly reordered arrays. */
+    if (!reorder_particles_by_morton(tree, view, error)) {
+        return hpcsim_error_failed(error) ? error->status : HPCSIM_STATUS_OUT_OF_MEMORY;
+    }
+    tree->build_view = &tree->reordered_view;
+    tree->node_count = 0;
+
+    /* Preallocate the full node capacity (2N-1 worst case) so insertion never
+     * reallocates or memcpy's the node buffer during the build. */
+    const size_t worst_case_nodes = particle_count >= 1 ? 2 * particle_count - 1 : 1;
+    if (!ensure_node_capacity(tree, worst_case_nodes)) {
         hpcsim_error_set(error, HPCSIM_STATUS_OUT_OF_MEMORY, __FILE__, __LINE__,
                          "Barnes-Hut tree node buffer exhausted");
         return HPCSIM_STATUS_OUT_OF_MEMORY;
@@ -368,88 +580,110 @@ static HpcsimStatus build_tree(HpcsimBarnesHutTree* tree,
     return HPCSIM_STATUS_OK;
 }
 
+typedef struct TraversalEntry {
+    int32_t node_index;
+    double cell_center_x;
+    double cell_center_y;
+    double cell_center_z;
+    double cell_half_size;
+} TraversalEntry;
+
 /*
- * Recursive force traversal for one query particle.
+ * Iterative force traversal for one query particle.
+ *
+ * An explicit stack replaces recursion (no per-node call overhead) and the
+ * opening test uses squared quantities, avoiding a square root per visited
+ * node: a cell is accepted when  cell_size^2 < theta^2 * distance^2.
  *
  * `approximations` and `exact_interactions` accumulate the traversal
  * statistics so the OpenMP loop can reduce per-thread counts without
  * synchronizing the shared tree.
  */
-static void traverse_node(const HpcsimBarnesHutTree* tree,
-                          const HpcsimParticleSystemView* view,
-                          const HpcsimGravity* gravity, size_t node_index,
-                          double cell_center_x, double cell_center_y, double cell_center_z,
-                          double cell_half_size, size_t query_particle,
-                          double* acceleration_x, double* acceleration_y,
-                          double* acceleration_z, size_t* approximations,
-                          size_t* exact_interactions) {
-    const BarnesHutNode* node = &tree->nodes[node_index];
-    if (node->particle_count == 0) {
-        return;
-    }
+static void evaluate_particle(const HpcsimBarnesHutTree* tree,
+                              const HpcsimParticleSystemView* view,
+                              const HpcsimGravity* gravity, size_t query_particle,
+                              double* acceleration_x, double* acceleration_y,
+                              double* acceleration_z, size_t* approximations,
+                              size_t* exact_interactions) {
+    TraversalEntry stack[1024];
+    int stack_size = 1;
+    stack[0] = (TraversalEntry){0, tree->root_center_x, tree->root_center_y,
+                                tree->root_center_z, tree->root_half_size};
 
-    if (node->particle_index != -1) {
-        if ((size_t)node->particle_index != query_particle) {
-            const size_t j = (size_t)node->particle_index;
-            const double delta_x = view->positions_x[j] - view->positions_x[query_particle];
-            const double delta_y = view->positions_y[j] - view->positions_y[query_particle];
-            const double delta_z = view->positions_z[j] - view->positions_z[query_particle];
-            const double distance_squared =
-                delta_x * delta_x + delta_y * delta_y + delta_z * delta_z +
-                gravity->softening_squared;
-            const double inverse_distance_cubed =
-                1.0 / (distance_squared * sqrt(distance_squared));
-            const double force_scale =
-                gravity->gravitational_constant * view->masses[j] * inverse_distance_cubed;
-            *acceleration_x += force_scale * delta_x;
-            *acceleration_y += force_scale * delta_y;
-            *acceleration_z += force_scale * delta_z;
-            ++(*exact_interactions);
+    const double query_x = view->positions_x[query_particle];
+    const double query_y = view->positions_y[query_particle];
+    const double query_z = view->positions_z[query_particle];
+    const double theta_squared = tree->theta * tree->theta;
+    const double softening_squared = gravity->softening_squared;
+    const double gravitational_constant = gravity->gravitational_constant;
+
+    while (stack_size > 0) {
+        const TraversalEntry entry = stack[--stack_size];
+        const BarnesHutNode* node = &tree->nodes[entry.node_index];
+        if (node->particle_count == 0) {
+            continue;
         }
-        return;
-    }
 
-    const double delta_x = node->center_of_mass_x - view->positions_x[query_particle];
-    const double delta_y = node->center_of_mass_y - view->positions_y[query_particle];
-    const double delta_z = node->center_of_mass_z - view->positions_z[query_particle];
-    const double distance_squared = delta_x * delta_x + delta_y * delta_y + delta_z * delta_z;
-    const double cell_size = 2.0 * cell_half_size;
+        if (node->particle_index != -1) {
+            if ((size_t)node->particle_index != query_particle) {
+                const size_t j = (size_t)node->particle_index;
+                const double delta_x = view->positions_x[j] - query_x;
+                const double delta_y = view->positions_y[j] - query_y;
+                const double delta_z = view->positions_z[j] - query_z;
+                const double distance_squared =
+                    delta_x * delta_x + delta_y * delta_y + delta_z * delta_z +
+                    softening_squared;
+                const double inverse_distance_cubed =
+                    1.0 / (distance_squared * sqrt(distance_squared));
+                const double force_scale =
+                    gravitational_constant * view->masses[j] * inverse_distance_cubed;
+                *acceleration_x += force_scale * delta_x;
+                *acceleration_y += force_scale * delta_y;
+                *acceleration_z += force_scale * delta_z;
+                ++(*exact_interactions);
+            }
+            continue;
+        }
 
-    int descend = 1;
-    if (distance_squared > 0.0) {
-        const double distance = sqrt(distance_squared);
-        if (cell_size / distance < tree->theta) {
-            descend = 0;
-            const double softened_squared =
-                distance_squared + gravity->softening_squared;
+        const double delta_x = node->center_of_mass_x - query_x;
+        const double delta_y = node->center_of_mass_y - query_y;
+        const double delta_z = node->center_of_mass_z - query_z;
+        const double distance_squared =
+            delta_x * delta_x + delta_y * delta_y + delta_z * delta_z;
+        const double cell_size_squared = 4.0 * entry.cell_half_size * entry.cell_half_size;
+
+        if (distance_squared > 0.0 && cell_size_squared < theta_squared * distance_squared) {
+            const double softened_squared = distance_squared + softening_squared;
             const double inverse_distance_cubed =
                 1.0 / (softened_squared * sqrt(softened_squared));
             const double force_scale =
-                gravity->gravitational_constant * node->total_mass * inverse_distance_cubed;
+                gravitational_constant * node->total_mass * inverse_distance_cubed;
             *acceleration_x += force_scale * delta_x;
             *acceleration_y += force_scale * delta_y;
             *acceleration_z += force_scale * delta_z;
             ++(*approximations);
+            continue;
         }
-    }
 
-    if (descend) {
-        const double child_half_size = 0.5 * cell_half_size;
+        const double child_half_size = 0.5 * entry.cell_half_size;
+        const double child_offset = entry.cell_half_size * 0.5;
         for (int child = 0; child < 8; ++child) {
             const int32_t child_index = node->child_indices[child];
             if (child_index == -1) {
                 continue;
             }
+            if (stack_size >= 1024) {
+                break;
+            }
             const double child_center_x =
-                cell_center_x + ((child & 1) ? cell_half_size * 0.5 : -cell_half_size * 0.5);
+                entry.cell_center_x + ((child & 1) ? child_offset : -child_offset);
             const double child_center_y =
-                cell_center_y + ((child & 2) ? cell_half_size * 0.5 : -cell_half_size * 0.5);
+                entry.cell_center_y + ((child & 2) ? child_offset : -child_offset);
             const double child_center_z =
-                cell_center_z + ((child & 4) ? cell_half_size * 0.5 : -cell_half_size * 0.5);
-            traverse_node(tree, view, gravity, (size_t)child_index, child_center_x,
-                          child_center_y, child_center_z, child_half_size, query_particle,
-                          acceleration_x, acceleration_y, acceleration_z, approximations,
-                          exact_interactions);
+                entry.cell_center_z + ((child & 4) ? child_offset : -child_offset);
+            stack[stack_size++] = (TraversalEntry){
+                child_index, child_center_x, child_center_y, child_center_z,
+                child_half_size};
         }
     }
 }
@@ -472,9 +706,10 @@ HpcsimStatus hpcsim_barnes_hut_compute_acceleration(const HpcsimParticleSystemVi
     const double build_finish = wall_time_seconds();
 
     const size_t particle_count = view->particle_count;
-    double* const accelerations_x = view->accelerations_x;
-    double* const accelerations_y = view->accelerations_y;
-    double* const accelerations_z = view->accelerations_z;
+    const HpcsimParticleSystemView* reordered = &tree->reordered_view;
+    double* const accelerations_x = reordered->accelerations_x;
+    double* const accelerations_y = reordered->accelerations_y;
+    double* const accelerations_z = reordered->accelerations_z;
 
     size_t total_approximations = 0;
     size_t total_exact_interactions = 0;
@@ -487,10 +722,9 @@ HpcsimStatus hpcsim_barnes_hut_compute_acceleration(const HpcsimParticleSystemVi
         double acceleration_x = 0.0;
         double acceleration_y = 0.0;
         double acceleration_z = 0.0;
-        traverse_node(tree, view, gravity, 0, tree->root_center_x, tree->root_center_y,
-                      tree->root_center_z, tree->root_half_size, (size_t)i,
-                      &acceleration_x, &acceleration_y, &acceleration_z, &approximations,
-                      &exact_interactions);
+        evaluate_particle(tree, reordered, gravity, (size_t)i, &acceleration_x,
+                          &acceleration_y, &acceleration_z, &approximations,
+                          &exact_interactions);
         accelerations_x[i] = acceleration_x;
         accelerations_y[i] = acceleration_y;
         accelerations_z[i] = acceleration_z;
@@ -498,6 +732,14 @@ HpcsimStatus hpcsim_barnes_hut_compute_acceleration(const HpcsimParticleSystemVi
         total_exact_interactions += exact_interactions;
     }
     const double evaluation_finish = wall_time_seconds();
+
+    /* Scatter the reordered accelerations back to the caller's array order. */
+    for (size_t i = 0; i < particle_count; ++i) {
+        const size_t original = tree->permutation[i];
+        view->accelerations_x[original] = accelerations_x[i];
+        view->accelerations_y[original] = accelerations_y[i];
+        view->accelerations_z[original] = accelerations_z[i];
+    }
 
     tree->stats.accepted_approximations = total_approximations;
     tree->stats.exact_interactions = total_exact_interactions;
