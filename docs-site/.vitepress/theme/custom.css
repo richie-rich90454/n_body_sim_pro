@@ -1,0 +1,218 @@
+/*
+ * HPCSim technical documentation theme.
+ *
+ * Deliberately cold and instrumental, matching the simulation window's
+ * workstation aesthetic: near-black surfaces, restrained desaturated
+ * accents, monospace-first typography, data-sheet tables. No gradients,
+ * no glows, no decorative motion.
+ */
+
+:root {
+  --hpcsim-bg: #0b0b10;
+  --hpcsim-bg-soft: #0d0d14;
+  --hpcsim-bg-raise: #12121b;
+  --hpcsim-border: #232636;
+  --hpcsim-border-strong: #333849;
+  --hpcsim-text: #b7c0cf;
+  --hpcsim-text-dim: #7d8698;
+  --hpcsim-text-bright: #dfe6f0;
+  --hpcsim-accent: #7fb8c6;
+  --hpcsim-accent-dim: #4a7680;
+  --hpcsim-warn: #d8b46a;
+  --hpcsim-err: #d4767d;
+  --hpcsim-ok: #8fc98f;
+
+  --vp-c-bg: var(--hpcsim-bg);
+  --vp-c-bg-alt: var(--hpcsim-bg-soft);
+  --vp-c-bg-elv: var(--hpcsim-bg-raise);
+  --vp-c-bg-soft: var(--hpcsim-bg-raise);
+  --vp-c-text-1: var(--hpcsim-text-bright);
+  --vp-c-text-2: var(--hpcsim-text);
+  --vp-c-text-3: var(--hpcsim-text-dim);
+  --vp-c-border: var(--hpcsim-border);
+  --vp-c-border-hard: var(--hpcsim-border-strong);
+  --vp-c-divider: var(--hpcsim-border);
+  --vp-c-gutter: var(--hpcsim-border);
+  --vp-c-brand-1: var(--hpcsim-accent);
+  --vp-c-brand-2: var(--hpcsim-accent);
+  --vp-c-brand-3: var(--hpcsim-accent-dim);
+  --vp-c-brand-soft: rgba(127, 184, 198, 0.10);
+  --vp-c-warning-1: var(--hpcsim-warn);
+  --vp-c-danger-1: var(--hpcsim-err);
+  --vp-c-tip-1: var(--hpcsim-ok);
+  --vp-font-family-base: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --vp-font-family-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --vp-code-font-size: 0.87em;
+  --vp-code-block-bg: #0f0f17;
+  --vp-code-line-height: 1.7;
+  --vp-code-color: #c5cfdd;
+  --vp-code-line-highlight-color: rgba(127, 184, 198, 0.08);
+}
+
+.dark {
+  --vp-c-bg: var(--hpcsim-bg);
+  --vp-c-bg-alt: var(--hpcsim-bg-soft);
+  --vp-c-bg-elv: var(--hpcsim-bg-raise);
+  --vp-c-bg-soft: var(--hpcsim-bg-raise);
+}
+
+body {
+  background-color: var(--hpcsim-bg);
+}
+
+/* Fine technical grid on the page background */
+.VPContent.has-sidebar {
+  background-image:
+    linear-gradient(rgba(127, 184, 198, 0.020) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(127, 184, 198, 0.020) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* Typography: cold, dense, precise */
+.VPDoc h1 {
+  font-family: var(--vp-font-family-mono);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--hpcsim-text-bright);
+  border-bottom: 1px solid var(--hpcsim-border);
+  padding-bottom: 0.6rem;
+}
+.VPDoc h2 {
+  font-family: var(--vp-font-family-mono);
+  font-weight: 600;
+  font-size: 1.25rem;
+  letter-spacing: -0.01em;
+  color: var(--hpcsim-accent);
+}
+.VPDoc h3 {
+  font-family: var(--vp-font-family-mono);
+  font-weight: 500;
+}
+.VPDoc p, .VPDoc li {
+  line-height: 1.75;
+}
+
+/* Data-sheet tables */
+.VPDoc table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  font-family: var(--vp-font-family-mono);
+}
+.VPDoc th {
+  background: var(--hpcsim-bg-raise);
+  color: var(--hpcsim-accent);
+  text-align: left;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+.VPDoc th, .VPDoc td {
+  border: 1px solid var(--hpcsim-border);
+  padding: 0.45rem 0.75rem;
+}
+.VPDoc tbody tr:nth-child(odd) {
+  background: rgba(127, 184, 198, 0.025);
+}
+.VPDoc td code {
+  background: transparent;
+  padding: 0;
+}
+
+/* Code blocks: terminal panels */
+.vp-doc div[class*="language-"] {
+  border: 1px solid var(--hpcsim-border);
+  border-radius: 6px;
+}
+.vp-doc div[class*="language-"]::before {
+  content: "hpcsim $";
+  font-family: var(--vp-font-family-mono);
+  color: var(--hpcsim-text-dim);
+  font-size: 0.72rem;
+  text-transform: none;
+}
+
+/* Inline code */
+.vp-doc :not(pre) > code {
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.85em;
+  background: var(--hpcsim-bg-raise);
+  border: 1px solid var(--hpcsim-border);
+  color: var(--hpcsim-accent);
+}
+
+/* Callouts styled as instrument readouts */
+.vp-doc .custom-block {
+  border-radius: 6px;
+  border-width: 1px 1px 1px 3px;
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.85rem;
+}
+.vp-doc .custom-block.info {
+  border-color: var(--hpcsim-border-strong);
+  border-left-color: var(--hpcsim-accent);
+  background: rgba(127, 184, 198, 0.05);
+}
+.vp-doc .custom-block.tip {
+  border-color: var(--hpcsim-border-strong);
+  border-left-color: var(--hpcsim-ok);
+  background: rgba(143, 201, 143, 0.05);
+}
+.vp-doc .custom-block.warning {
+  border-color: var(--hpcsim-border-strong);
+  border-left-color: var(--hpcsim-warn);
+  background: rgba(216, 180, 106, 0.06);
+}
+.vp-doc .custom-block.danger {
+  border-color: var(--hpcsim-border-strong);
+  border-left-color: var(--hpcsim-err);
+  background: rgba(212, 118, 125, 0.06);
+}
+
+/* Navigation: technical */
+.VPNavBarTitle .title {
+  font-family: var(--vp-font-family-mono);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+.VPSidebarItem .text {
+  font-size: 0.85rem;
+}
+.VPSidebarItem.is-active > .item .text {
+  color: var(--hpcsim-accent);
+}
+
+/* Home-ish hero on index is replaced by a spec sheet; keep containers quiet */
+.VPHomeHero .name {
+  font-family: var(--vp-font-family-mono);
+  letter-spacing: 0.05em;
+}
+
+/* Keep links cold: no hover glow, just an underline shift */
+.vp-doc a {
+  color: var(--hpcsim-accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--hpcsim-border-strong);
+}
+.vp-doc a:hover {
+  border-bottom-color: var(--hpcsim-accent);
+}
+
+/* Scrollbars: minimal */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--hpcsim-border-strong);
+  border-radius: 0;
+}
+::-webkit-scrollbar-track {
+  background: var(--hpcsim-bg);
+}
+
+/* Selection: restrained */
+::selection {
+  background: rgba(127, 184, 198, 0.25);
+}
