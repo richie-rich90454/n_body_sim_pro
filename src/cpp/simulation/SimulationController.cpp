@@ -76,6 +76,9 @@ HpcsimBarnesHutTree* SimulationController::barnes_hut_tree() {
 HpcsimForceFunction SimulationController::select_force_function(void*& force_context) const {
     if (barnes_hut_enabled) {
         force_context = const_cast<HpcsimBarnesHutTree*>(tree_.get());
+        if (use_simd_barnes_hut && simd_backend_ == HPCSIM_SIMD_BACKEND_AVX2) {
+            return hpcsim_barnes_hut_compute_acceleration_openmp_avx2;
+        }
         return hpcsim_barnes_hut_compute_acceleration;
     }
     force_context = nullptr;
