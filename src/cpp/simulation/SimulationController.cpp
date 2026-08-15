@@ -46,12 +46,48 @@ void SimulationController::apply_preset(HpcsimSimulationPreset preset,
     compute_initial_accelerations();
 }
 
+HpcsimBarnesHutTree* SimulationController::barnes_hut_tree() {
+    if (!tree_) {
+        HpcsimError error;
+        hpcsim_error_clear(&error);
+        tree_.reset(hpcsim_barnes_hut_tree_create(&error));
+        if (!tree_) {
+            throw std::runtime_error("SimulationController: failed to create Barnes-Hut "
+                                     "tree context");
+        }
+    }
+    hpcsim_barnes_hut_tree_set_theta(tree_.get(), barnes_hut_theta);
+    return tree_.get();
+}
+
+HpcsimForceFunction SimulationController::select_force_function(void*& force_context) const {
+    if (barnes_hut_enabled) {
+        force_context = const_cast<HpcsimBarnesHutTree*>(tree_.get());
+        return hpcsim_barnes_hut_compute_acceleration;
+    }
+    force_context = nullptr;
+    const bool avx2_available = simd_backend_ == HPCSIM_SIMD_BACKEND_AVX2;
+    const bool openmp_available = hpcsim_threading_openmp_available() != 0;
+    if (use_parallel_forces && openmp_available) {
+        return avx2_available ? hpcsim_gravity_compute_acceleration_openmp_avx2
+                              : hpcsim_gravity_compute_acceleration_openmp;
+    }
+    if (avx2_available) {
+        return hpcsim_gravity_compute_acceleration_avx2;
+    }
+    return hpcsim_gravity_compute_acceleration_reference;
+}
+
 void SimulationController::compute_initial_accelerations() {
+    if (barnes_hut_enabled) {
+        hpcsim_barnes_hut_tree_set_theta(barnes_hut_tree(), barnes_hut_theta);
+    }
     HpcsimParticleSystemView view = particles_.view();
     HpcsimError error;
     hpcsim_error_clear(&error);
-    HpcsimStatus status =
-        hpcsim_gravity_compute_acceleration_reference(&view, &gravity_, &error);
+    void* force_context = nullptr;
+    HpcsimForceFunction force_function = select_force_function(force_context);
+    HpcsimStatus status = force_function(&view, &gravity_, force_context, &error);
     if (status != HPCSIM_STATUS_OK) {
         throw std::runtime_error("SimulationController: failed to compute initial forces");
     }
@@ -72,23 +108,16 @@ void SimulationController::set_softening_length(double value) {
 }
 
 void SimulationController::step() {
+    if (barnes_hut_enabled) {
+        hpcsim_barnes_hut_tree_set_theta(barnes_hut_tree(), barnes_hut_theta);
+    }
     HpcsimParticleSystemView view = particles_.view();
     HpcsimError error;
     hpcsim_error_clear(&error);
-    HpcsimForceFunction force_function = nullptr;
-    const bool avx2_available = simd_backend_ == HPCSIM_SIMD_BACKEND_AVX2;
-    const bool openmp_available = hpcsim_threading_openmp_available() != 0;
-    if (use_parallel_forces && openmp_available) {
-        force_function = avx2_available
-                             ? hpcsim_gravity_compute_acceleration_openmp_avx2
-                             : hpcsim_gravity_compute_acceleration_openmp;
-    } else if (avx2_available) {
-        force_function = hpcsim_gravity_compute_acceleration_avx2;
-    } else {
-        force_function = hpcsim_gravity_compute_acceleration_reference;
-    }
+    void* force_context = nullptr;
+    HpcsimForceFunction force_function = select_force_function(force_context);
     HpcsimStatus status = hpcsim_integrator_advance(&view, &gravity_, integrator, timestep,
-                                                    force_function, &error);
+                                                    force_function, force_context, &error);
     if (status != HPCSIM_STATUS_OK) {
         throw std::runtime_error("SimulationController: integrator step failed");
     }
