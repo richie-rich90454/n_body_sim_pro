@@ -63,6 +63,44 @@ int run_headless(const HeadlessOptions& options, HeadlessReport& report) {
     return 0;
 }
 
+int resume_checkpoint(const char* path, int steps, int threads, HeadlessReport& report) {
+    if (threads > 0) {
+        hpcsim_threading_set_thread_count(threads);
+    }
+
+    SimulationController simulation;
+    simulation.running = false;
+    try {
+        simulation.load_checkpoint(path);
+    } catch (const std::exception& error) {
+        std::fprintf(stderr, "resume: failed to load checkpoint: %s\n", error.what());
+        return 1;
+    }
+
+    simulation.step();
+    report.first_step_ms = simulation.last_step_ms();
+
+    const auto start = std::chrono::steady_clock::now();
+    for (int step = 0; step < steps; ++step) {
+        try {
+            simulation.step();
+        } catch (const std::exception& error) {
+            std::fprintf(stderr, "resume: simulation step failed: %s\n", error.what());
+            return 1;
+        }
+    }
+    const auto finish = std::chrono::steady_clock::now();
+    report.average_step_ms =
+        std::chrono::duration<double, std::milli>(finish - start).count() / (double)steps;
+
+    simulation.refresh_energy_diagnostics();
+    const auto& diagnostics = simulation.numerical_diagnostics();
+    report.energy_drift = diagnostics.energy_drift;
+    report.momentum_error = diagnostics.momentum_error;
+    report.energy_available = diagnostics.energy_available;
+    return 0;
+}
+
 void print_report(const HeadlessOptions& options, const HeadlessReport& report) {
     const HpcsimCpuFeatures cpu = hpcsim_cpu_detect_features();
     HpcsimMemoryEstimate memory;
