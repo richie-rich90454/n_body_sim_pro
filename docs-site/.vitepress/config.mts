@@ -8,6 +8,14 @@ export default defineConfig({
   cleanUrls: true,
   lastUpdated: true,
 
+  /*
+   * GitHub Pages serves project sites under /<repo>/; asset URLs resolve
+   * from the base path, so the default '/' makes every hashed file 404. The
+   * workflow sets VITEPRESS_BASE to the deployment path; local dev/build
+   * use '/' by default.
+   */
+  base: process.env.VITEPRESS_BASE ?? '/',
+
   build: {
     rollupOptions: {
       output: {
@@ -21,7 +29,7 @@ export default defineConfig({
   head: [
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
-    ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap' }],
+    ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans:wght@400;500;600;700&display=swap' }],
     ['link', { rel: 'stylesheet', href: 'https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css' }],
   ],
 
