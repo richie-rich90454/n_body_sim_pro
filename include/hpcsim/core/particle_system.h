@@ -29,6 +29,34 @@ extern "C" {
 typedef struct HpcsimParticleSystem HpcsimParticleSystem;
 
 /*
+ * Lightweight snapshot of a particle system's raw storage.
+ *
+ * Physics kernels and the renderer consume this view rather than the owning
+ * object. It carries no ownership; it is only valid while the source system
+ * lives and until the source system is reserved/reallocated.
+ */
+typedef struct HpcsimParticleSystemView {
+    size_t particle_count;
+    double* positions_x;
+    double* positions_y;
+    double* positions_z;
+    double* velocities_x;
+    double* velocities_y;
+    double* velocities_z;
+    double* accelerations_x;
+    double* accelerations_y;
+    double* accelerations_z;
+    double* masses;
+} HpcsimParticleSystemView;
+
+/*
+ * Populate *view from the particle system's current storage. Returns
+ * HPCSIM_STATUS_OK on success.
+ */
+HpcsimStatus hpcsim_particle_system_view(const HpcsimParticleSystem* particle_system,
+                                         HpcsimParticleSystemView* view, HpcsimError* error);
+
+/*
  * The default alignment for particle storage arrays. 64 bytes exceeds AVX-512
  * width (64 bytes) so any supported SIMD backend can load directly from these
  * buffers without manual alignment handling.
