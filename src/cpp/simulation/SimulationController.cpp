@@ -9,6 +9,8 @@ SimulationController::SimulationController() : particles_(2) {
     for (auto& trail : trails_) {
         trail.reserve(TRAIL_CAPACITY);
     }
+    const HpcsimCpuFeatures cpu_features = hpcsim_cpu_detect_features();
+    simd_backend_ = hpcsim_simd_best_available_backend(&cpu_features);
     apply_preset(HPCSIM_PRESET_TWO_BODY, 2, 1);
 }
 
@@ -73,10 +75,18 @@ void SimulationController::step() {
     HpcsimParticleSystemView view = particles_.view();
     HpcsimError error;
     hpcsim_error_clear(&error);
-    HpcsimForceFunction force_function =
-        use_parallel_forces && hpcsim_threading_openmp_available()
-            ? hpcsim_gravity_compute_acceleration_openmp
-            : hpcsim_gravity_compute_acceleration_reference;
+    HpcsimForceFunction force_function = nullptr;
+    const bool avx2_available = simd_backend_ == HPCSIM_SIMD_BACKEND_AVX2;
+    const bool openmp_available = hpcsim_threading_openmp_available() != 0;
+    if (use_parallel_forces && openmp_available) {
+        force_function = avx2_available
+                             ? hpcsim_gravity_compute_acceleration_openmp_avx2
+                             : hpcsim_gravity_compute_acceleration_openmp;
+    } else if (avx2_available) {
+        force_function = hpcsim_gravity_compute_acceleration_avx2;
+    } else {
+        force_function = hpcsim_gravity_compute_acceleration_reference;
+    }
     HpcsimStatus status = hpcsim_integrator_advance(&view, &gravity_, integrator, timestep,
                                                     force_function, &error);
     if (status != HPCSIM_STATUS_OK) {
