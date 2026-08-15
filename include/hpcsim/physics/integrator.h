@@ -40,25 +40,28 @@ const char* hpcsim_integrator_type_string(HpcsimIntegratorType integrator);
 /*
  * A force kernel: computes accelerations for every particle into the view's
  * acceleration arrays. Used by the integrators so they stay decoupled from
- * any specific algorithm (reference all-pairs, Barnes-Hut, ...).
+ * any specific algorithm (reference all-pairs, OpenMP, SIMD, Barnes-Hut).
+ * `context` carries algorithm-specific state (e.g. a Barnes-Hut tree) and
+ * may be NULL for kernels that need none.
  */
 typedef HpcsimStatus (*HpcsimForceFunction)(const HpcsimParticleSystemView* view,
                                             const HpcsimGravity* gravity,
-                                            HpcsimError* error);
+                                            void* context, HpcsimError* error);
 
 /*
  * Advance the system by one timestep.
  *
  * `view` is read/written in place. `force_function` is invoked once (Euler)
- * or twice (leapfrog, velocity Verlet) during the step. The initial
- * accelerations must be valid before the first call for symplectic methods.
+ * or twice (leapfrog, velocity Verlet) during the step, each time with
+ * `force_context`. The initial accelerations must be valid before the first
+ * call for symplectic methods.
  */
 HpcsimStatus hpcsim_integrator_advance(HpcsimParticleSystemView* view,
                                        const HpcsimGravity* gravity,
                                        HpcsimIntegratorType integrator,
                                        double timestep,
                                        HpcsimForceFunction force_function,
-                                       HpcsimError* error);
+                                       void* force_context, HpcsimError* error);
 
 #ifdef __cplusplus
 }
