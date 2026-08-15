@@ -16,6 +16,7 @@
 #include "hpcsim/generation/presets.h"
 #include "hpcsim/generation/random.h"
 #include "hpcsim/memory/allocator.h"
+#include "hpcsim/memory/allocation_tracker.h"
 #include "hpcsim/physics/gravity.h"
 #include "hpcsim/physics/integrator.h"
 #include "hpcsim/simd/backend.h"
