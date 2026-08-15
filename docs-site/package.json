@@ -6,15 +6,16 @@
   "type": "module",
   "scripts": {
     "dev": "vitepress dev .",
-    "build": "vitepress build .",
+    "build": "vitepress build . && node scripts/postbuild.mjs",
     "preview": "vitepress preview ."
   },
   "engines": {
     "node": ">=20"
   },
   "devDependencies": {
+    "@mdit/plugin-katex": "^1.1.0",
+    "katex": "^0.18.4",
     "mermaid": "^11.4.1",
-    "markdown-it-katex": "^2.0.3",
     "vitepress": "^1.6.3"
   }
 }
