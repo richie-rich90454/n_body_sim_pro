@@ -26,3 +26,30 @@ foreach(test_target IN LISTS HPCSIM_TESTS)
     add_test(NAME ${test_name} COMMAND ${test_name})
     hpcsim_apply_warnings(${test_name})
 endforeach()
+
+# Distributed test: only when the engine was built with MPI.
+if(HPCSIM_MPI_ENABLED)
+    find_program(HPCSIM_MPIEXEC mpiexec
+        HINTS "$ENV{USERPROFILE}/AppData/Local/Programs/Microsoft MPI/Bin")
+    if(HPCSIM_MPIEXEC)
+        add_executable(distributed_barnes_hut_test
+            integration/distributed_barnes_hut_test.c)
+        target_include_directories(distributed_barnes_hut_test PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR})
+        target_link_libraries(distributed_barnes_hut_test PRIVATE ${HPCSIM_C_LIBRARY})
+        hpcsim_apply_warnings(distributed_barnes_hut_test)
+        add_test(NAME distributed_barnes_hut_test
+            COMMAND ${HPCSIM_MPIEXEC} -n 2 $<TARGET_FILE:distributed_barnes_hut_test>)
+        set_tests_properties(distributed_barnes_hut_test PROPERTIES
+            ENVIRONMENT "PATH=C:/msys64/ucrt64/bin;$ENV{PATH}")
+        # On this Windows host the MS-MPI runtime DLL is not in a system
+        # directory; place the x64 runtime next to the test binary so the
+        # MPI child processes can load it.
+        if(WIN32 AND EXISTS "$ENV{USERPROFILE}/AppData/Local/Programs/Microsoft MPI/Bin/msmpi.dll")
+            add_custom_command(TARGET distributed_barnes_hut_test POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "$ENV{USERPROFILE}/AppData/Local/Programs/Microsoft MPI/Bin/msmpi.dll"
+                    $<TARGET_FILE_DIR:distributed_barnes_hut_test>/msmpi.dll)
+        endif()
+    endif()
+endif()
