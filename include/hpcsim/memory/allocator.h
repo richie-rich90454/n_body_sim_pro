@@ -28,7 +28,8 @@ typedef enum HpcsimAllocationCategory {
     HPCSIM_ALLOCATION_CATEGORY_CHECKPOINT,
     HPCSIM_ALLOCATION_CATEGORY_RENDERER,
     HPCSIM_ALLOCATION_CATEGORY_UI,
-    HPCSIM_ALLOCATION_CATEGORY_OTHER
+    HPCSIM_ALLOCATION_CATEGORY_OTHER,
+    HPCSIM_ALLOCATION_CATEGORY_COUNT
 } HpcsimAllocationCategory;
 
 /* Human-readable name for an allocation category. Never returns NULL. */
