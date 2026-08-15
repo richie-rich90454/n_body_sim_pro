@@ -129,7 +129,9 @@ static void compute_acceleration_block(const HpcsimParticleSystemView* view,
 }
 
 HpcsimStatus hpcsim_gravity_compute_acceleration_avx2(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, HpcsimError* error) {
+    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
+    HpcsimError* error) {
+    (void)context;
     if (view == NULL || gravity == NULL) {
         hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
                          "view and gravity parameters must not be null");
@@ -142,7 +144,9 @@ HpcsimStatus hpcsim_gravity_compute_acceleration_avx2(
 }
 
 HpcsimStatus hpcsim_gravity_compute_acceleration_openmp_avx2(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, HpcsimError* error) {
+    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
+    HpcsimError* error) {
+    (void)context;
     if (view == NULL || gravity == NULL) {
         hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
                          "view and gravity parameters must not be null");
@@ -160,13 +164,15 @@ HpcsimStatus hpcsim_gravity_compute_acceleration_openmp_avx2(
 #else /* !__AVX2__ */
 
 HpcsimStatus hpcsim_gravity_compute_acceleration_avx2(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, HpcsimError* error) {
-    return hpcsim_gravity_compute_acceleration_reference(view, gravity, error);
+    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
+    HpcsimError* error) {
+    return hpcsim_gravity_compute_acceleration_reference(view, gravity, context, error);
 }
 
 HpcsimStatus hpcsim_gravity_compute_acceleration_openmp_avx2(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, HpcsimError* error) {
-    return hpcsim_gravity_compute_acceleration_openmp(view, gravity, error);
+    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
+    HpcsimError* error) {
+    return hpcsim_gravity_compute_acceleration_openmp(view, gravity, context, error);
 }
 
 #endif /* __AVX2__ */
