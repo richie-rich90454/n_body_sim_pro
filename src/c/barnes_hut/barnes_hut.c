@@ -1,7 +1,7 @@
-#include "hpcsim/barnes_hut/barnes_hut.h"
+#include "n_body_sim_pro/barnes_hut/barnes_hut.h"
 #include "barnes_hut_internal.h"
 
-#include "hpcsim/memory/allocator.h"
+#include "n_body_sim_pro/memory/allocator.h"
 
 #include <math.h>
 #include <stdint.h>
@@ -19,7 +19,7 @@ static double wall_time_seconds(void) {
     return (double)ts.tv_sec + (double)ts.tv_nsec * 1.0e-9;
 }
 
-double hpcsim_barnes_hut_wall_time_seconds(void) {
+double n_body_sim_pro_barnes_hut_wall_time_seconds(void) {
     return wall_time_seconds();
 }
 
@@ -27,12 +27,12 @@ enum { BARNES_HUT_MAX_TREE_DEPTH = 128 };
 
 #define BARNES_HUT_DEFAULT_THETA 0.7
 
-HpcsimBarnesHutTree* hpcsim_barnes_hut_tree_create(HpcsimError* error) {
-    HpcsimBarnesHutTree* tree = (HpcsimBarnesHutTree*)hpcsim_allocate(
-        sizeof(HpcsimBarnesHutTree), 64, HPCSIM_ALLOCATION_CATEGORY_OCTREE_NODES,
+NBodySimProBarnesHutTree* n_body_sim_pro_barnes_hut_tree_create(NBodySimProError* error) {
+    NBodySimProBarnesHutTree* tree = (NBodySimProBarnesHutTree*)n_body_sim_pro_allocate(
+        sizeof(NBodySimProBarnesHutTree), 64, N_BODY_SIM_PRO_ALLOCATION_CATEGORY_OCTREE_NODES,
         __FILE__, __LINE__);
     if (tree == NULL) {
-        hpcsim_error_set(error, HPCSIM_STATUS_OUT_OF_MEMORY, __FILE__, __LINE__,
+        n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_OUT_OF_MEMORY, __FILE__, __LINE__,
                          "failed to allocate Barnes-Hut tree context");
         return NULL;
     }
@@ -62,36 +62,36 @@ HpcsimBarnesHutTree* hpcsim_barnes_hut_tree_create(HpcsimError* error) {
     return tree;
 }
 
-void hpcsim_barnes_hut_tree_destroy(HpcsimBarnesHutTree* tree) {
+void n_body_sim_pro_barnes_hut_tree_destroy(NBodySimProBarnesHutTree* tree) {
     if (tree == NULL) {
         return;
     }
-    hpcsim_deallocate(tree->morton_keys, __FILE__, __LINE__);
-    hpcsim_deallocate(tree->permutation, __FILE__, __LINE__);
-    hpcsim_deallocate(tree->sort_workspace, __FILE__, __LINE__);
-    hpcsim_deallocate(tree->counting_workspace, __FILE__, __LINE__);
-    hpcsim_deallocate(tree->reordered_positions_x, __FILE__, __LINE__);
-    hpcsim_deallocate(tree->reordered_positions_y, __FILE__, __LINE__);
-    hpcsim_deallocate(tree->reordered_positions_z, __FILE__, __LINE__);
-    hpcsim_deallocate(tree->reordered_masses, __FILE__, __LINE__);
-    hpcsim_deallocate(tree->reordered_accelerations_x, __FILE__, __LINE__);
-    hpcsim_deallocate(tree->reordered_accelerations_y, __FILE__, __LINE__);
-    hpcsim_deallocate(tree->reordered_accelerations_z, __FILE__, __LINE__);
-    hpcsim_deallocate(tree->nodes, __FILE__, __LINE__);
-    hpcsim_deallocate(tree, __FILE__, __LINE__);
+    n_body_sim_pro_deallocate(tree->morton_keys, __FILE__, __LINE__);
+    n_body_sim_pro_deallocate(tree->permutation, __FILE__, __LINE__);
+    n_body_sim_pro_deallocate(tree->sort_workspace, __FILE__, __LINE__);
+    n_body_sim_pro_deallocate(tree->counting_workspace, __FILE__, __LINE__);
+    n_body_sim_pro_deallocate(tree->reordered_positions_x, __FILE__, __LINE__);
+    n_body_sim_pro_deallocate(tree->reordered_positions_y, __FILE__, __LINE__);
+    n_body_sim_pro_deallocate(tree->reordered_positions_z, __FILE__, __LINE__);
+    n_body_sim_pro_deallocate(tree->reordered_masses, __FILE__, __LINE__);
+    n_body_sim_pro_deallocate(tree->reordered_accelerations_x, __FILE__, __LINE__);
+    n_body_sim_pro_deallocate(tree->reordered_accelerations_y, __FILE__, __LINE__);
+    n_body_sim_pro_deallocate(tree->reordered_accelerations_z, __FILE__, __LINE__);
+    n_body_sim_pro_deallocate(tree->nodes, __FILE__, __LINE__);
+    n_body_sim_pro_deallocate(tree, __FILE__, __LINE__);
 }
 
-void hpcsim_barnes_hut_tree_set_theta(HpcsimBarnesHutTree* tree, double theta) {
+void n_body_sim_pro_barnes_hut_tree_set_theta(NBodySimProBarnesHutTree* tree, double theta) {
     if (tree != NULL) {
         tree->theta = theta;
     }
 }
 
-double hpcsim_barnes_hut_tree_theta(const HpcsimBarnesHutTree* tree) {
+double n_body_sim_pro_barnes_hut_tree_theta(const NBodySimProBarnesHutTree* tree) {
     return tree == NULL ? 0.0 : tree->theta;
 }
 
-static int ensure_node_capacity(HpcsimBarnesHutTree* tree, size_t required) {
+static int ensure_node_capacity(NBodySimProBarnesHutTree* tree, size_t required) {
     if (required <= tree->node_capacity) {
         return 1;
     }
@@ -102,7 +102,7 @@ static int ensure_node_capacity(HpcsimBarnesHutTree* tree, size_t required) {
         }
         new_capacity *= 2;
     }
-    BarnesHutNode* new_nodes = (BarnesHutNode*)hpcsim_reallocate(
+    BarnesHutNode* new_nodes = (BarnesHutNode*)n_body_sim_pro_reallocate(
         tree->nodes, new_capacity * sizeof(BarnesHutNode), __FILE__, __LINE__);
     if (new_nodes == NULL) {
         return 0;
@@ -112,7 +112,7 @@ static int ensure_node_capacity(HpcsimBarnesHutTree* tree, size_t required) {
     return 1;
 }
 
-static size_t append_empty_node(HpcsimBarnesHutTree* tree) {
+static size_t append_empty_node(NBodySimProBarnesHutTree* tree) {
     BarnesHutNode* node = &tree->nodes[tree->node_count];
     for (int child = 0; child < 8; ++child) {
         node->child_indices[child] = -1;
@@ -126,7 +126,7 @@ static size_t append_empty_node(HpcsimBarnesHutTree* tree) {
     return tree->node_count++;
 }
 
-static int octant_of(const HpcsimParticleSystemView* view, size_t particle_index,
+static int octant_of(const NBodySimProParticleSystemView* view, size_t particle_index,
                      double cell_center_x, double cell_center_y, double cell_center_z) {
     int octant = 0;
     if (view->positions_x[particle_index] > cell_center_x) {
@@ -142,14 +142,14 @@ static int octant_of(const HpcsimParticleSystemView* view, size_t particle_index
 }
 
 /* Recursive insertion. `depth` bounds degenerate cases (duplicate positions). */
-static HpcsimStatus insert_particle(HpcsimBarnesHutTree* tree, size_t node_index,
+static NBodySimProStatus insert_particle(NBodySimProBarnesHutTree* tree, size_t node_index,
                                     size_t particle_index, double cell_center_x,
                                     double cell_center_y, double cell_center_z,
-                                    double cell_half_size, int depth, HpcsimError* error) {
+                                    double cell_half_size, int depth, NBodySimProError* error) {
     if (depth > BARNES_HUT_MAX_TREE_DEPTH) {
-        hpcsim_error_set(error, HPCSIM_STATUS_OVERFLOW, __FILE__, __LINE__,
+        n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_OVERFLOW, __FILE__, __LINE__,
                          "Barnes-Hut tree exceeded maximum depth (duplicate positions?)");
-        return HPCSIM_STATUS_OVERFLOW;
+        return N_BODY_SIM_PRO_STATUS_OVERFLOW;
     }
 
     /* NOTE: tree->nodes may be reallocated by ensure_node_capacity below,
@@ -161,9 +161,9 @@ static HpcsimStatus insert_particle(HpcsimBarnesHutTree* tree, size_t node_index
                                          cell_center_x, cell_center_y, cell_center_z);
 
         if (!ensure_node_capacity(tree, tree->node_count + 1)) {
-            hpcsim_error_set(error, HPCSIM_STATUS_OUT_OF_MEMORY, __FILE__, __LINE__,
+            n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_OUT_OF_MEMORY, __FILE__, __LINE__,
                              "Barnes-Hut tree node buffer exhausted");
-            return HPCSIM_STATUS_OUT_OF_MEMORY;
+            return N_BODY_SIM_PRO_STATUS_OUT_OF_MEMORY;
         }
         tree->nodes[node_index].particle_index = -1;
         const size_t old_child = append_empty_node(tree);
@@ -183,9 +183,9 @@ static HpcsimStatus insert_particle(HpcsimBarnesHutTree* tree, size_t node_index
     int32_t child_index = tree->nodes[node_index].child_indices[octant];
     if (child_index == -1) {
         if (!ensure_node_capacity(tree, tree->node_count + 1)) {
-            hpcsim_error_set(error, HPCSIM_STATUS_OUT_OF_MEMORY, __FILE__, __LINE__,
+            n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_OUT_OF_MEMORY, __FILE__, __LINE__,
                              "Barnes-Hut tree node buffer exhausted");
-            return HPCSIM_STATUS_OUT_OF_MEMORY;
+            return N_BODY_SIM_PRO_STATUS_OUT_OF_MEMORY;
         }
         child_index = (int32_t)append_empty_node(tree);
         tree->nodes[node_index].child_indices[octant] = child_index;
@@ -196,7 +196,7 @@ static HpcsimStatus insert_particle(HpcsimBarnesHutTree* tree, size_t node_index
         child->center_of_mass_x = tree->build_view->positions_x[particle_index];
         child->center_of_mass_y = tree->build_view->positions_y[particle_index];
         child->center_of_mass_z = tree->build_view->positions_z[particle_index];
-        return HPCSIM_STATUS_OK;
+        return N_BODY_SIM_PRO_STATUS_OK;
     }
 
     const double child_half_size = 0.5 * cell_half_size;
@@ -211,7 +211,7 @@ static HpcsimStatus insert_particle(HpcsimBarnesHutTree* tree, size_t node_index
                            error);
 }
 
-static void compute_center_of_masses(HpcsimBarnesHutTree* tree) {
+static void compute_center_of_masses(NBodySimProBarnesHutTree* tree) {
     /* Children always have higher indices, so reverse iteration is
      * post-order: internal nodes are finalized after all their children. */
     for (size_t index = tree->node_count; index > 0; --index) {
@@ -252,7 +252,7 @@ static void compute_center_of_masses(HpcsimBarnesHutTree* tree) {
     }
 }
 
-static void count_statistics(HpcsimBarnesHutTree* tree) {
+static void count_statistics(NBodySimProBarnesHutTree* tree) {
     tree->stats.node_count = tree->node_count;
     tree->stats.leaf_count = 0;
     tree->stats.internal_node_count = 0;
@@ -266,7 +266,7 @@ static void count_statistics(HpcsimBarnesHutTree* tree) {
     }
 }
 
-static size_t compute_maximum_depth(const HpcsimBarnesHutTree* tree, size_t node_index) {
+static size_t compute_maximum_depth(const NBodySimProBarnesHutTree* tree, size_t node_index) {
     const BarnesHutNode* node = &tree->nodes[node_index];
     size_t maximum_child_depth = 0;
     for (int child = 0; child < 8; ++child) {
@@ -309,7 +309,7 @@ static uint64_t morton_key(uint64_t x, uint64_t y, uint64_t z) {
  * (3 passes). Stable, O(N), cache-friendly; the counting workspace needs
  * 2^21 entries.
  */
-static void radix_sort_morton_keys(HpcsimBarnesHutTree* tree, size_t count) {
+static void radix_sort_morton_keys(NBodySimProBarnesHutTree* tree, size_t count) {
     for (int pass = 0; pass < 3; ++pass) {
         const unsigned int shift = (unsigned int)(21 * pass);
         const size_t mask = (1u << 21) - 1;
@@ -338,8 +338,8 @@ static void radix_sort_morton_keys(HpcsimBarnesHutTree* tree, size_t count) {
     }
 }
 
-static int ensure_reorder_workspace(HpcsimBarnesHutTree* tree, size_t count,
-                                    HpcsimError* error) {
+static int ensure_reorder_workspace(NBodySimProBarnesHutTree* tree, size_t count,
+                                    NBodySimProError* error) {
     if (count <= tree->reordered_count) {
         return 1;
     }
@@ -349,34 +349,34 @@ static int ensure_reorder_workspace(HpcsimBarnesHutTree* tree, size_t count,
     const size_t index_bytes = count * sizeof(size_t);
     const size_t double_bytes = count * sizeof(double);
 
-    uint64_t* keys = (uint64_t*)hpcsim_reallocate(tree->morton_keys, key_bytes, __FILE__,
+    uint64_t* keys = (uint64_t*)n_body_sim_pro_reallocate(tree->morton_keys, key_bytes, __FILE__,
                                                   __LINE__);
-    size_t* permutation = (size_t*)hpcsim_reallocate(tree->permutation, index_bytes,
+    size_t* permutation = (size_t*)n_body_sim_pro_reallocate(tree->permutation, index_bytes,
                                                      __FILE__, __LINE__);
-    size_t* sort_workspace = (size_t*)hpcsim_reallocate(tree->sort_workspace, index_bytes,
+    size_t* sort_workspace = (size_t*)n_body_sim_pro_reallocate(tree->sort_workspace, index_bytes,
                                                         __FILE__, __LINE__);
-    size_t* counting = (size_t*)hpcsim_reallocate(tree->counting_workspace,
+    size_t* counting = (size_t*)n_body_sim_pro_reallocate(tree->counting_workspace,
                                                   (1u << 21) * sizeof(size_t), __FILE__,
                                                   __LINE__);
-    double* px = (double*)hpcsim_reallocate(tree->reordered_positions_x, double_bytes,
+    double* px = (double*)n_body_sim_pro_reallocate(tree->reordered_positions_x, double_bytes,
                                             __FILE__, __LINE__);
-    double* py = (double*)hpcsim_reallocate(tree->reordered_positions_y, double_bytes,
+    double* py = (double*)n_body_sim_pro_reallocate(tree->reordered_positions_y, double_bytes,
                                             __FILE__, __LINE__);
-    double* pz = (double*)hpcsim_reallocate(tree->reordered_positions_z, double_bytes,
+    double* pz = (double*)n_body_sim_pro_reallocate(tree->reordered_positions_z, double_bytes,
                                             __FILE__, __LINE__);
-    double* masses = (double*)hpcsim_reallocate(tree->reordered_masses, double_bytes,
+    double* masses = (double*)n_body_sim_pro_reallocate(tree->reordered_masses, double_bytes,
                                                 __FILE__, __LINE__);
-    double* ax = (double*)hpcsim_reallocate(tree->reordered_accelerations_x, double_bytes,
+    double* ax = (double*)n_body_sim_pro_reallocate(tree->reordered_accelerations_x, double_bytes,
                                             __FILE__, __LINE__);
-    double* ay = (double*)hpcsim_reallocate(tree->reordered_accelerations_y, double_bytes,
+    double* ay = (double*)n_body_sim_pro_reallocate(tree->reordered_accelerations_y, double_bytes,
                                             __FILE__, __LINE__);
-    double* az = (double*)hpcsim_reallocate(tree->reordered_accelerations_z, double_bytes,
+    double* az = (double*)n_body_sim_pro_reallocate(tree->reordered_accelerations_z, double_bytes,
                                             __FILE__, __LINE__);
 
     if (keys == NULL || permutation == NULL || sort_workspace == NULL || counting == NULL ||
         px == NULL || py == NULL || pz == NULL || masses == NULL || ax == NULL ||
         ay == NULL || az == NULL) {
-        hpcsim_error_set(error, HPCSIM_STATUS_OUT_OF_MEMORY, __FILE__, __LINE__,
+        n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_OUT_OF_MEMORY, __FILE__, __LINE__,
                          "failed to allocate Barnes-Hut reorder workspace");
         return 0;
     }
@@ -399,9 +399,9 @@ static int ensure_reorder_workspace(HpcsimBarnesHutTree* tree, size_t count,
  * `permutation[i]` is the original index of the particle that now sits at
  * reordered position i, so reordered_position[i] = view->position[permutation[i]].
  */
-static int reorder_particles_by_morton(HpcsimBarnesHutTree* tree,
-                                       const HpcsimParticleSystemView* view,
-                                       HpcsimError* error) {
+static int reorder_particles_by_morton(NBodySimProBarnesHutTree* tree,
+                                       const NBodySimProParticleSystemView* view,
+                                       NBodySimProError* error) {
     const size_t count = view->particle_count;
     if (!ensure_reorder_workspace(tree, count, error)) {
         return 0;
@@ -439,15 +439,15 @@ static int reorder_particles_by_morton(HpcsimBarnesHutTree* tree,
     return 1;
 }
 
-HpcsimStatus hpcsim_barnes_hut_build_tree(HpcsimBarnesHutTree* tree,
-                               const HpcsimParticleSystemView* view,
-                               HpcsimError* error) {
+NBodySimProStatus n_body_sim_pro_barnes_hut_build_tree(NBodySimProBarnesHutTree* tree,
+                               const NBodySimProParticleSystemView* view,
+                               NBodySimProError* error) {
     const size_t particle_count = view->particle_count;
 
     if (particle_count == 0) {
-        hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
+        n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
                          "cannot build a Barnes-Hut tree for an empty system");
-        return HPCSIM_STATUS_INVALID_ARGUMENT;
+        return N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT;
     }
 
     double minimum_x = view->positions_x[0];
@@ -485,7 +485,7 @@ HpcsimStatus hpcsim_barnes_hut_build_tree(HpcsimBarnesHutTree* tree,
     /* Reorder particles by Morton key; the build and evaluation then read the
      * cache-friendly reordered arrays. */
     if (!reorder_particles_by_morton(tree, view, error)) {
-        return hpcsim_error_failed(error) ? error->status : HPCSIM_STATUS_OUT_OF_MEMORY;
+        return n_body_sim_pro_error_failed(error) ? error->status : N_BODY_SIM_PRO_STATUS_OUT_OF_MEMORY;
     }
     tree->build_view = &tree->reordered_view;
     tree->node_count = 0;
@@ -494,9 +494,9 @@ HpcsimStatus hpcsim_barnes_hut_build_tree(HpcsimBarnesHutTree* tree,
      * reallocates or memcpy's the node buffer during the build. */
     const size_t worst_case_nodes = particle_count >= 1 ? 2 * particle_count - 1 : 1;
     if (!ensure_node_capacity(tree, worst_case_nodes)) {
-        hpcsim_error_set(error, HPCSIM_STATUS_OUT_OF_MEMORY, __FILE__, __LINE__,
+        n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_OUT_OF_MEMORY, __FILE__, __LINE__,
                          "Barnes-Hut tree node buffer exhausted");
-        return HPCSIM_STATUS_OUT_OF_MEMORY;
+        return N_BODY_SIM_PRO_STATUS_OUT_OF_MEMORY;
     }
     append_empty_node(tree);
 
@@ -511,10 +511,10 @@ HpcsimStatus hpcsim_barnes_hut_build_tree(HpcsimBarnesHutTree* tree,
             root->center_of_mass_z = view->positions_z[i];
             continue;
         }
-        HpcsimStatus status = insert_particle(
+        NBodySimProStatus status = insert_particle(
             tree, 0, i, tree->root_center_x, tree->root_center_y, tree->root_center_z,
             half_size, 0, error);
-        if (status != HPCSIM_STATUS_OK) {
+        if (status != N_BODY_SIM_PRO_STATUS_OK) {
             return status;
         }
     }
@@ -524,7 +524,7 @@ HpcsimStatus hpcsim_barnes_hut_build_tree(HpcsimBarnesHutTree* tree,
     tree->stats.maximum_depth = compute_maximum_depth(tree, 0);
     tree->stats.accepted_approximations = 0;
     tree->stats.exact_interactions = 0;
-    return HPCSIM_STATUS_OK;
+    return N_BODY_SIM_PRO_STATUS_OK;
 }
 
 typedef struct TraversalEntry {
@@ -546,9 +546,9 @@ typedef struct TraversalEntry {
  * statistics so the OpenMP loop can reduce per-thread counts without
  * synchronizing the shared tree.
  */
-void hpcsim_barnes_hut_evaluate_particle_scalar(const HpcsimBarnesHutTree* tree,
-                              const HpcsimParticleSystemView* view,
-                              const HpcsimGravity* gravity, size_t query_particle,
+void n_body_sim_pro_barnes_hut_evaluate_particle_scalar(const NBodySimProBarnesHutTree* tree,
+                              const NBodySimProParticleSystemView* view,
+                              const NBodySimProGravity* gravity, size_t query_particle,
                               double* acceleration_x, double* acceleration_y,
                               double* acceleration_z, size_t* approximations,
                               size_t* exact_interactions) {
@@ -635,25 +635,25 @@ void hpcsim_barnes_hut_evaluate_particle_scalar(const HpcsimBarnesHutTree* tree,
     }
 }
 
-HpcsimStatus hpcsim_barnes_hut_compute_acceleration(const HpcsimParticleSystemView* view,
-                                                    const HpcsimGravity* gravity,
-                                                    void* context, HpcsimError* error) {
-    HpcsimBarnesHutTree* tree = (HpcsimBarnesHutTree*)context;
+NBodySimProStatus n_body_sim_pro_barnes_hut_compute_acceleration(const NBodySimProParticleSystemView* view,
+                                                    const NBodySimProGravity* gravity,
+                                                    void* context, NBodySimProError* error) {
+    NBodySimProBarnesHutTree* tree = (NBodySimProBarnesHutTree*)context;
     if (tree == NULL || view == NULL || gravity == NULL) {
-        hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
+        n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
                          "tree, view, and gravity parameters must not be null");
-        return HPCSIM_STATUS_INVALID_ARGUMENT;
+        return N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT;
     }
 
     const double build_start = wall_time_seconds();
-    HpcsimStatus status = hpcsim_barnes_hut_build_tree(tree, view, error);
-    if (status != HPCSIM_STATUS_OK) {
+    NBodySimProStatus status = n_body_sim_pro_barnes_hut_build_tree(tree, view, error);
+    if (status != N_BODY_SIM_PRO_STATUS_OK) {
         return status;
     }
     const double build_finish = wall_time_seconds();
 
     const size_t particle_count = view->particle_count;
-    const HpcsimParticleSystemView* reordered = &tree->reordered_view;
+    const NBodySimProParticleSystemView* reordered = &tree->reordered_view;
     double* const accelerations_x = reordered->accelerations_x;
     double* const accelerations_y = reordered->accelerations_y;
     double* const accelerations_z = reordered->accelerations_z;
@@ -669,7 +669,7 @@ HpcsimStatus hpcsim_barnes_hut_compute_acceleration(const HpcsimParticleSystemVi
         double acceleration_x = 0.0;
         double acceleration_y = 0.0;
         double acceleration_z = 0.0;
-        hpcsim_barnes_hut_evaluate_particle_scalar(tree, reordered, gravity, (size_t)i, &acceleration_x,
+        n_body_sim_pro_barnes_hut_evaluate_particle_scalar(tree, reordered, gravity, (size_t)i, &acceleration_x,
                           &acceleration_y, &acceleration_z, &approximations,
                           &exact_interactions);
         accelerations_x[i] = acceleration_x;
@@ -680,17 +680,17 @@ HpcsimStatus hpcsim_barnes_hut_compute_acceleration(const HpcsimParticleSystemVi
     }
     const double evaluation_finish = wall_time_seconds();
 
-    hpcsim_barnes_hut_scatter_accelerations(tree, view);
+    n_body_sim_pro_barnes_hut_scatter_accelerations(tree, view);
 
     tree->stats.accepted_approximations = total_approximations;
     tree->stats.exact_interactions = total_exact_interactions;
     tree->stats.build_time_seconds = build_finish - build_start;
     tree->stats.evaluation_time_seconds = evaluation_finish - evaluation_start;
-    return HPCSIM_STATUS_OK;
+    return N_BODY_SIM_PRO_STATUS_OK;
 }
 
-void hpcsim_barnes_hut_scatter_accelerations(const HpcsimBarnesHutTree* tree,
-                                             const HpcsimParticleSystemView* view) {
+void n_body_sim_pro_barnes_hut_scatter_accelerations(const NBodySimProBarnesHutTree* tree,
+                                             const NBodySimProParticleSystemView* view) {
     const size_t particle_count = view->particle_count;
     const double* const accelerations_x = tree->reordered_view.accelerations_x;
     const double* const accelerations_y = tree->reordered_view.accelerations_y;
@@ -703,8 +703,8 @@ void hpcsim_barnes_hut_scatter_accelerations(const HpcsimBarnesHutTree* tree,
     }
 }
 
-int hpcsim_barnes_hut_tree_stats(const HpcsimBarnesHutTree* tree,
-                                 HpcsimBarnesHutStats* stats) {
+int n_body_sim_pro_barnes_hut_tree_stats(const NBodySimProBarnesHutTree* tree,
+                                 NBodySimProBarnesHutStats* stats) {
     if (tree == NULL || stats == NULL) {
         return 1;
     }

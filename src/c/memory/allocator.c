@@ -1,17 +1,17 @@
-#include "hpcsim/memory/allocator.h"
-#include "hpcsim/memory/allocation_tracker.h"
+#include "n_body_sim_pro/memory/allocator.h"
+#include "n_body_sim_pro/memory/allocation_tracker.h"
 
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct HpcsimAllocationHeader {
+typedef struct NBodySimProAllocationHeader {
     size_t size;
     size_t alignment;
-    HpcsimAllocationCategory category;
+    NBodySimProAllocationCategory category;
     const char* source_file;
     int source_line;
-} HpcsimAllocationHeader;
+} NBodySimProAllocationHeader;
 
 static uintptr_t align_up(uintptr_t value, size_t alignment) {
     size_t remainder = (size_t)(value % (uintptr_t)alignment);
@@ -21,25 +21,25 @@ static uintptr_t align_up(uintptr_t value, size_t alignment) {
     return value + (uintptr_t)(alignment - remainder);
 }
 
-const char* hpcsim_allocation_category_string(HpcsimAllocationCategory category) {
+const char* n_body_sim_pro_allocation_category_string(NBodySimProAllocationCategory category) {
     switch (category) {
-        case HPCSIM_ALLOCATION_CATEGORY_PARTICLE_STORAGE:
+        case N_BODY_SIM_PRO_ALLOCATION_CATEGORY_PARTICLE_STORAGE:
             return "particle_storage";
-        case HPCSIM_ALLOCATION_CATEGORY_OCTREE_NODES:
+        case N_BODY_SIM_PRO_ALLOCATION_CATEGORY_OCTREE_NODES:
             return "octree_nodes";
-        case HPCSIM_ALLOCATION_CATEGORY_THREAD_WORKSPACE:
+        case N_BODY_SIM_PRO_ALLOCATION_CATEGORY_THREAD_WORKSPACE:
             return "thread_workspace";
-        case HPCSIM_ALLOCATION_CATEGORY_TEMPORARY_BUFFER:
+        case N_BODY_SIM_PRO_ALLOCATION_CATEGORY_TEMPORARY_BUFFER:
             return "temporary_buffer";
-        case HPCSIM_ALLOCATION_CATEGORY_CHECKPOINT:
+        case N_BODY_SIM_PRO_ALLOCATION_CATEGORY_CHECKPOINT:
             return "checkpoint";
-        case HPCSIM_ALLOCATION_CATEGORY_RENDERER:
+        case N_BODY_SIM_PRO_ALLOCATION_CATEGORY_RENDERER:
             return "renderer";
-        case HPCSIM_ALLOCATION_CATEGORY_UI:
+        case N_BODY_SIM_PRO_ALLOCATION_CATEGORY_UI:
             return "ui";
-        case HPCSIM_ALLOCATION_CATEGORY_OTHER:
+        case N_BODY_SIM_PRO_ALLOCATION_CATEGORY_OTHER:
             return "other";
-        case HPCSIM_ALLOCATION_CATEGORY_COUNT:
+        case N_BODY_SIM_PRO_ALLOCATION_CATEGORY_COUNT:
             break;
     }
     return "unknown";
@@ -55,8 +55,8 @@ const char* hpcsim_allocation_category_string(HpcsimAllocationCategory category)
  * block base is recovered directly from the back-reference stored in the
  * bytes immediately before the aligned user pointer.
  */
-void* hpcsim_allocate(size_t size, size_t alignment,
-                      HpcsimAllocationCategory category,
+void* n_body_sim_pro_allocate(size_t size, size_t alignment,
+                      NBodySimProAllocationCategory category,
                       const char* source_file, int source_line) {
     if (size == 0) {
         return NULL;
@@ -68,13 +68,13 @@ void* hpcsim_allocate(size_t size, size_t alignment,
         return NULL;
     }
 
-    size_t header_size = sizeof(HpcsimAllocationHeader);
+    size_t header_size = sizeof(NBodySimProAllocationHeader);
     if (size > SIZE_MAX - alignment - header_size) {
         return NULL;
     }
 
-    HpcsimAllocationHeader* header =
-        (HpcsimAllocationHeader*)malloc(header_size + alignment + size);
+    NBodySimProAllocationHeader* header =
+        (NBodySimProAllocationHeader*)malloc(header_size + alignment + size);
     if (header == NULL) {
         return NULL;
     }
@@ -91,32 +91,32 @@ void* hpcsim_allocate(size_t size, size_t alignment,
     void** back_reference = (void**)(aligned_address - (uintptr_t)sizeof(void*));
     *back_reference = header;
 
-    hpcsim_allocation_tracker_record(category, size, 1);
+    n_body_sim_pro_allocation_tracker_record(category, size, 1);
 
     return (void*)aligned_address;
 }
 
-void hpcsim_deallocate(void* pointer, const char* source_file, int source_line) {
+void n_body_sim_pro_deallocate(void* pointer, const char* source_file, int source_line) {
     (void)source_file;
     (void)source_line;
     if (pointer == NULL) {
         return;
     }
-    HpcsimAllocationHeader** back_reference =
-        (HpcsimAllocationHeader**)((uintptr_t)pointer - (uintptr_t)sizeof(void*));
-    HpcsimAllocationHeader* header = *back_reference;
-    hpcsim_allocation_tracker_record(header->category, header->size, 0);
+    NBodySimProAllocationHeader** back_reference =
+        (NBodySimProAllocationHeader**)((uintptr_t)pointer - (uintptr_t)sizeof(void*));
+    NBodySimProAllocationHeader* header = *back_reference;
+    n_body_sim_pro_allocation_tracker_record(header->category, header->size, 0);
     free(header);
 }
 
-int hpcsim_allocation_query(const void* pointer, size_t* size,
-                            HpcsimAllocationCategory* category) {
+int n_body_sim_pro_allocation_query(const void* pointer, size_t* size,
+                            NBodySimProAllocationCategory* category) {
     if (pointer == NULL) {
         return 1;
     }
-    HpcsimAllocationHeader* const* back_reference =
-        (HpcsimAllocationHeader* const*)((uintptr_t)pointer - (uintptr_t)sizeof(void*));
-    HpcsimAllocationHeader* header = *back_reference;
+    NBodySimProAllocationHeader* const* back_reference =
+        (NBodySimProAllocationHeader* const*)((uintptr_t)pointer - (uintptr_t)sizeof(void*));
+    NBodySimProAllocationHeader* header = *back_reference;
     if (size != NULL) {
         *size = header->size;
     }
@@ -126,25 +126,25 @@ int hpcsim_allocation_query(const void* pointer, size_t* size,
     return 0;
 }
 
-void* hpcsim_reallocate(void* pointer, size_t new_size, const char* source_file,
+void* n_body_sim_pro_reallocate(void* pointer, size_t new_size, const char* source_file,
                         int source_line) {
     if (pointer == NULL) {
-        return hpcsim_allocate(new_size, sizeof(void*), HPCSIM_ALLOCATION_CATEGORY_OTHER,
+        return n_body_sim_pro_allocate(new_size, sizeof(void*), N_BODY_SIM_PRO_ALLOCATION_CATEGORY_OTHER,
                                source_file, source_line);
     }
     if (new_size == 0) {
         return NULL;
     }
-    HpcsimAllocationHeader* const* back_reference =
-        (HpcsimAllocationHeader* const*)((uintptr_t)pointer - (uintptr_t)sizeof(void*));
-    HpcsimAllocationHeader* header = *back_reference;
+    NBodySimProAllocationHeader* const* back_reference =
+        (NBodySimProAllocationHeader* const*)((uintptr_t)pointer - (uintptr_t)sizeof(void*));
+    NBodySimProAllocationHeader* header = *back_reference;
     const size_t old_size = header->size;
     if (old_size >= new_size) {
         header->size = new_size;
         return pointer;
     }
 
-    void* replacement = hpcsim_allocate(new_size, header->alignment, header->category,
+    void* replacement = n_body_sim_pro_allocate(new_size, header->alignment, header->category,
                                         source_file, source_line);
     if (replacement == NULL) {
         return NULL;

@@ -1,6 +1,6 @@
-# C17 numerical/HPC engine. Public API headers live in include/hpcsim.
+# C17 numerical/HPC engine. Public API headers live in include/n_body_sim_pro.
 
-add_library(${HPCSIM_C_LIBRARY} STATIC
+add_library(${N_BODY_SIM_PRO_C_LIBRARY} STATIC
     core/status.c
     core/particle_system.c
     memory/allocator.c
@@ -32,40 +32,40 @@ elseif(MSVC)
         PROPERTIES COMPILE_OPTIONS "/arch:AVX2")
 endif()
 
-target_include_directories(${HPCSIM_C_LIBRARY} PUBLIC
+target_include_directories(${N_BODY_SIM_PRO_C_LIBRARY} PUBLIC
     ${CMAKE_SOURCE_DIR}/include)
 
-target_compile_features(${HPCSIM_C_LIBRARY} PUBLIC c_std_17)
+target_compile_features(${N_BODY_SIM_PRO_C_LIBRARY} PUBLIC c_std_17)
 
-hpcsim_apply_warnings(${HPCSIM_C_LIBRARY})
+n_body_sim_pro_apply_warnings(${N_BODY_SIM_PRO_C_LIBRARY})
 
-if(HPCSIM_ENABLE_OPENMP)
+if(N_BODY_SIM_PRO_ENABLE_OPENMP)
     find_package(OpenMP)
     if(OpenMP_C_FOUND)
-        target_link_libraries(${HPCSIM_C_LIBRARY} PUBLIC OpenMP::OpenMP_C)
-        target_compile_definitions(${HPCSIM_C_LIBRARY} PUBLIC HPCSIM_HAVE_OPENMP)
+        target_link_libraries(${N_BODY_SIM_PRO_C_LIBRARY} PUBLIC OpenMP::OpenMP_C)
+        target_compile_definitions(${N_BODY_SIM_PRO_C_LIBRARY} PUBLIC N_BODY_SIM_PRO_HAVE_OPENMP)
     endif()
 endif()
 
-if(HPCSIM_ENABLE_MPI)
+if(N_BODY_SIM_PRO_ENABLE_MPI)
     find_package(MPI QUIET COMPONENTS C)
     if(MPI_C_FOUND)
-        target_compile_definitions(${HPCSIM_C_LIBRARY} PUBLIC HPCSIM_HAVE_MPI)
-        target_include_directories(${HPCSIM_C_LIBRARY} PUBLIC ${MPI_C_INCLUDE_DIRS})
+        target_compile_definitions(${N_BODY_SIM_PRO_C_LIBRARY} PUBLIC N_BODY_SIM_PRO_HAVE_MPI)
+        target_include_directories(${N_BODY_SIM_PRO_C_LIBRARY} PUBLIC ${MPI_C_INCLUDE_DIRS})
         if(MPI_C_LINK_FLAGS)
-            target_link_libraries(${HPCSIM_C_LIBRARY} PUBLIC ${MPI_C_LINK_FLAGS})
+            target_link_libraries(${N_BODY_SIM_PRO_C_LIBRARY} PUBLIC ${MPI_C_LINK_FLAGS})
         else()
-            target_link_libraries(${HPCSIM_C_LIBRARY} PUBLIC ${MPI_C_LIBRARIES})
+            target_link_libraries(${N_BODY_SIM_PRO_C_LIBRARY} PUBLIC ${MPI_C_LIBRARIES})
         endif()
-        set(HPCSIM_MPI_ENABLED ON CACHE INTERNAL "MPI available")
+        set(N_BODY_SIM_PRO_MPI_ENABLED ON CACHE INTERNAL "MPI available")
     else()
         # MSYS2 ships MS-MPI as an import library without mpicc discovery;
         # link it directly as a fallback.
-        find_library(HPCSIM_MSMPI_LIBRARY msmpi)
-        if(HPCSIM_MSMPI_LIBRARY)
-            target_compile_definitions(${HPCSIM_C_LIBRARY} PUBLIC HPCSIM_HAVE_MPI)
-            target_link_libraries(${HPCSIM_C_LIBRARY} PUBLIC ${HPCSIM_MSMPI_LIBRARY})
-            set(HPCSIM_MPI_ENABLED ON CACHE INTERNAL "MPI available")
+        find_library(N_BODY_SIM_PRO_MSMPI_LIBRARY msmpi)
+        if(N_BODY_SIM_PRO_MSMPI_LIBRARY)
+            target_compile_definitions(${N_BODY_SIM_PRO_C_LIBRARY} PUBLIC N_BODY_SIM_PRO_HAVE_MPI)
+            target_link_libraries(${N_BODY_SIM_PRO_C_LIBRARY} PUBLIC ${N_BODY_SIM_PRO_MSMPI_LIBRARY})
+            set(N_BODY_SIM_PRO_MPI_ENABLED ON CACHE INTERNAL "MPI available")
         endif()
     endif()
 endif()

@@ -1,32 +1,32 @@
-#include "hpcsim/core/status.h"
+#include "n_body_sim_pro/core/status.h"
 
 #include <string.h>
 
-const char* hpcsim_status_string(HpcsimStatus status) {
+const char* n_body_sim_pro_status_string(NBodySimProStatus status) {
     switch (status) {
-        case HPCSIM_STATUS_OK:
+        case N_BODY_SIM_PRO_STATUS_OK:
             return "ok";
-        case HPCSIM_STATUS_INVALID_ARGUMENT:
+        case N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT:
             return "invalid argument";
-        case HPCSIM_STATUS_OUT_OF_MEMORY:
+        case N_BODY_SIM_PRO_STATUS_OUT_OF_MEMORY:
             return "out of memory";
-        case HPCSIM_STATUS_INVALID_STATE:
+        case N_BODY_SIM_PRO_STATUS_INVALID_STATE:
             return "invalid state";
-        case HPCSIM_STATUS_NOT_IMPLEMENTED:
+        case N_BODY_SIM_PRO_STATUS_NOT_IMPLEMENTED:
             return "not implemented";
-        case HPCSIM_STATUS_UNSUPPORTED_PLATFORM:
+        case N_BODY_SIM_PRO_STATUS_UNSUPPORTED_PLATFORM:
             return "unsupported platform";
-        case HPCSIM_STATUS_OVERFLOW:
+        case N_BODY_SIM_PRO_STATUS_OVERFLOW:
             return "overflow";
-        case HPCSIM_STATUS_IO_ERROR:
+        case N_BODY_SIM_PRO_STATUS_IO_ERROR:
             return "i/o error";
-        case HPCSIM_STATUS_INSUFFICIENT_MEMORY:
+        case N_BODY_SIM_PRO_STATUS_INSUFFICIENT_MEMORY:
             return "insufficient memory";
     }
     return "unknown status";
 }
 
-void hpcsim_error_set(HpcsimError* error, HpcsimStatus status,
+void n_body_sim_pro_error_set(NBodySimProError* error, NBodySimProStatus status,
                       const char* source_file, int source_line,
                       const char* message) {
     if (error == NULL) {
@@ -45,16 +45,16 @@ void hpcsim_error_set(HpcsimError* error, HpcsimStatus status,
     }
 }
 
-void hpcsim_error_clear(HpcsimError* error) {
+void n_body_sim_pro_error_clear(NBodySimProError* error) {
     if (error == NULL) {
         return;
     }
-    error->status = HPCSIM_STATUS_OK;
+    error->status = N_BODY_SIM_PRO_STATUS_OK;
     error->source_file = NULL;
     error->source_line = 0;
     error->message[0] = '\0';
 }
 
-int hpcsim_error_failed(const HpcsimError* error) {
-    return error != NULL && error->status != HPCSIM_STATUS_OK;
+int n_body_sim_pro_error_failed(const NBodySimProError* error) {
+    return error != NULL && error->status != N_BODY_SIM_PRO_STATUS_OK;
 }

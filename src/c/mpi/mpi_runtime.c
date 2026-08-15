@@ -1,6 +1,6 @@
-#include "hpcsim/mpi/mpi_runtime.h"
+#include "n_body_sim_pro/mpi/mpi_runtime.h"
 
-#ifdef HPCSIM_HAVE_MPI
+#ifdef N_BODY_SIM_PRO_HAVE_MPI
 #include <mpi.h>
 #endif
 
@@ -10,20 +10,20 @@ static int mpi_initialized = 0;
 static int mpi_rank = 0;
 static int mpi_size = 1;
 
-int hpcsim_mpi_available(void) {
+int n_body_sim_pro_mpi_available(void) {
     return mpi_initialized;
 }
 
-int hpcsim_mpi_rank(void) {
+int n_body_sim_pro_mpi_rank(void) {
     return mpi_rank;
 }
 
-int hpcsim_mpi_comm_size(void) {
+int n_body_sim_pro_mpi_comm_size(void) {
     return mpi_size;
 }
 
-int hpcsim_mpi_initialize(int* argc, char*** argv, HpcsimMpiRuntime* runtime) {
-#ifdef HPCSIM_HAVE_MPI
+int n_body_sim_pro_mpi_initialize(int* argc, char*** argv, NBodySimProMpiRuntime* runtime) {
+#ifdef N_BODY_SIM_PRO_HAVE_MPI
     if (!mpi_initialized) {
         int provided = 0;
         if (MPI_Init_thread(argc, argv, MPI_THREAD_FUNNELED, &provided) != MPI_SUCCESS) {
@@ -50,8 +50,8 @@ int hpcsim_mpi_initialize(int* argc, char*** argv, HpcsimMpiRuntime* runtime) {
     return mpi_initialized ? 0 : 1;
 }
 
-void hpcsim_mpi_finalize(void) {
-#ifdef HPCSIM_HAVE_MPI
+void n_body_sim_pro_mpi_finalize(void) {
+#ifdef N_BODY_SIM_PRO_HAVE_MPI
     if (mpi_initialized) {
         MPI_Finalize();
         mpi_initialized = 0;
@@ -61,8 +61,8 @@ void hpcsim_mpi_finalize(void) {
 #endif
 }
 
-int hpcsim_mpi_barrier(void) {
-#ifdef HPCSIM_HAVE_MPI
+int n_body_sim_pro_mpi_barrier(void) {
+#ifdef N_BODY_SIM_PRO_HAVE_MPI
     if (mpi_initialized) {
         return MPI_Barrier(MPI_COMM_WORLD) == MPI_SUCCESS ? 0 : 1;
     }
@@ -72,8 +72,8 @@ int hpcsim_mpi_barrier(void) {
     return 0;
 }
 
-void hpcsim_mpi_abort(int exit_code) {
-#ifdef HPCSIM_HAVE_MPI
+void n_body_sim_pro_mpi_abort(int exit_code) {
+#ifdef N_BODY_SIM_PRO_HAVE_MPI
     if (mpi_initialized) {
         MPI_Abort(MPI_COMM_WORLD, exit_code);
     }
@@ -82,8 +82,8 @@ void hpcsim_mpi_abort(int exit_code) {
 #endif
 }
 
-double hpcsim_mpi_wall_time(void) {
-#ifdef HPCSIM_HAVE_MPI
+double n_body_sim_pro_mpi_wall_time(void) {
+#ifdef N_BODY_SIM_PRO_HAVE_MPI
     if (mpi_initialized) {
         return MPI_Wtime();
     }

@@ -1,8 +1,8 @@
-#include "hpcsim/physics/gravity.h"
+#include "n_body_sim_pro/physics/gravity.h"
 
 #include <math.h>
 
-void hpcsim_gravity_init(HpcsimGravity* gravity, double gravitational_constant,
+void n_body_sim_pro_gravity_init(NBodySimProGravity* gravity, double gravitational_constant,
                          double softening_length) {
     if (gravity == NULL) {
         return;
@@ -12,14 +12,14 @@ void hpcsim_gravity_init(HpcsimGravity* gravity, double gravitational_constant,
     gravity->softening_squared = softening_length * softening_length;
 }
 
-HpcsimStatus hpcsim_gravity_compute_acceleration_reference(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
-    HpcsimError* error) {
+NBodySimProStatus n_body_sim_pro_gravity_compute_acceleration_reference(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error) {
     (void)context;
     if (view == NULL || gravity == NULL) {
-        hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
+        n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
                          "view and gravity parameters must not be null");
-        return HPCSIM_STATUS_INVALID_ARGUMENT;
+        return N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT;
     }
 
     const size_t particle_count = view->particle_count;
@@ -66,5 +66,5 @@ HpcsimStatus hpcsim_gravity_compute_acceleration_reference(
         accelerations_z[i] = acceleration_z;
     }
 
-    return HPCSIM_STATUS_OK;
+    return N_BODY_SIM_PRO_STATUS_OK;
 }

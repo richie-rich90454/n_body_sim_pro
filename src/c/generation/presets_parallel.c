@@ -1,7 +1,7 @@
-#include "hpcsim/generation/presets.h"
+#include "n_body_sim_pro/generation/presets.h"
 
-#include "hpcsim/generation/random.h"
-#include "hpcsim/threading/numa.h"
+#include "n_body_sim_pro/generation/random.h"
+#include "n_body_sim_pro/threading/numa.h"
 
 #include <math.h>
 #include <stdint.h>
@@ -26,7 +26,7 @@
  * node of the thread that will later process them.
  *
  * Per-preset math mirrors docs/physics/presets.md. The sequential generator
- * (hpcsim_preset_generate) remains the correctness reference; this variant
+ * (n_body_sim_pro_preset_generate) remains the correctness reference; this variant
  * is used for large systems where parallel generation and page placement
  * pay off.
  */
@@ -40,14 +40,14 @@ static uint64_t mix_seed(uint64_t master_seed, size_t particle_index) {
     return x ^ (x >> 31);
 }
 
-static void fill_two_body(HpcsimParticleSystem* particle_system, HpcsimError* error) {
-    double* const px = hpcsim_particle_system_positions_x(particle_system);
-    double* const py = hpcsim_particle_system_positions_y(particle_system);
-    double* const pz = hpcsim_particle_system_positions_z(particle_system);
-    double* const vx = hpcsim_particle_system_velocities_x(particle_system);
-    double* const vy = hpcsim_particle_system_velocities_y(particle_system);
-    double* const vz = hpcsim_particle_system_velocities_z(particle_system);
-    double* const mass = hpcsim_particle_system_masses(particle_system);
+static void fill_two_body(NBodySimProParticleSystem* particle_system, NBodySimProError* error) {
+    double* const px = n_body_sim_pro_particle_system_positions_x(particle_system);
+    double* const py = n_body_sim_pro_particle_system_positions_y(particle_system);
+    double* const pz = n_body_sim_pro_particle_system_positions_z(particle_system);
+    double* const vx = n_body_sim_pro_particle_system_velocities_x(particle_system);
+    double* const vy = n_body_sim_pro_particle_system_velocities_y(particle_system);
+    double* const vz = n_body_sim_pro_particle_system_velocities_z(particle_system);
+    double* const mass = n_body_sim_pro_particle_system_masses(particle_system);
     const double per_body_speed = sqrt(2.0) / 2.0;
     px[0] = -0.5; py[0] = 0.0; pz[0] = 0.0;
     vx[0] = 0.0; vy[0] = per_body_speed; vz[0] = 0.0; mass[0] = 1.0;
@@ -56,25 +56,25 @@ static void fill_two_body(HpcsimParticleSystem* particle_system, HpcsimError* er
     (void)error;
 }
 
-static void fill_solar_system(HpcsimParticleSystem* particle_system, uint64_t seed,
-                              HpcsimError* error) {
-    const size_t count = hpcsim_particle_system_particle_count(particle_system);
-    double* const px = hpcsim_particle_system_positions_x(particle_system);
-    double* const py = hpcsim_particle_system_positions_y(particle_system);
-    double* const pz = hpcsim_particle_system_positions_z(particle_system);
-    double* const vx = hpcsim_particle_system_velocities_x(particle_system);
-    double* const vy = hpcsim_particle_system_velocities_y(particle_system);
-    double* const vz = hpcsim_particle_system_velocities_z(particle_system);
-    double* const mass = hpcsim_particle_system_masses(particle_system);
+static void fill_solar_system(NBodySimProParticleSystem* particle_system, uint64_t seed,
+                              NBodySimProError* error) {
+    const size_t count = n_body_sim_pro_particle_system_particle_count(particle_system);
+    double* const px = n_body_sim_pro_particle_system_positions_x(particle_system);
+    double* const py = n_body_sim_pro_particle_system_positions_y(particle_system);
+    double* const pz = n_body_sim_pro_particle_system_positions_z(particle_system);
+    double* const vx = n_body_sim_pro_particle_system_velocities_x(particle_system);
+    double* const vy = n_body_sim_pro_particle_system_velocities_y(particle_system);
+    double* const vz = n_body_sim_pro_particle_system_velocities_z(particle_system);
+    double* const mass = n_body_sim_pro_particle_system_masses(particle_system);
     const size_t planet_count = count - 1;
-    HpcsimRandomGenerator generator;
-    hpcsim_random_init(&generator, seed);
+    NBodySimProRandomGenerator generator;
+    n_body_sim_pro_random_init(&generator, seed);
     px[0] = 0.0; py[0] = 0.0; pz[0] = 0.0;
     vx[0] = 0.0; vy[0] = 0.0; vz[0] = 0.0; mass[0] = 1.0;
     for (size_t i = 0; i < planet_count; ++i) {
         const double radius = 1.0 + 3.0 * (double)i / (double)planet_count;
         const double circular_speed = sqrt(GRAVITATIONAL_CONSTANT_UNITS / radius);
-        const double angle = 2.0 * M_PI * hpcsim_random_next_double(&generator);
+        const double angle = 2.0 * M_PI * n_body_sim_pro_random_next_double(&generator);
         const size_t index = i + 1;
         px[index] = radius * cos(angle);
         py[index] = radius * sin(angle);
@@ -88,16 +88,16 @@ static void fill_solar_system(HpcsimParticleSystem* particle_system, uint64_t se
 }
 
 /* Plummer-model fill for a block of particles. */
-static void fill_plummer_block(HpcsimParticleSystem* particle_system, uint64_t master_seed,
+static void fill_plummer_block(NBodySimProParticleSystem* particle_system, uint64_t master_seed,
                                size_t start, size_t count, double scale_radius,
                                double total_mass) {
-    double* const px = hpcsim_particle_system_positions_x(particle_system);
-    double* const py = hpcsim_particle_system_positions_y(particle_system);
-    double* const pz = hpcsim_particle_system_positions_z(particle_system);
-    double* const vx = hpcsim_particle_system_velocities_x(particle_system);
-    double* const vy = hpcsim_particle_system_velocities_y(particle_system);
-    double* const vz = hpcsim_particle_system_velocities_z(particle_system);
-    double* const mass = hpcsim_particle_system_masses(particle_system);
+    double* const px = n_body_sim_pro_particle_system_positions_x(particle_system);
+    double* const py = n_body_sim_pro_particle_system_positions_y(particle_system);
+    double* const pz = n_body_sim_pro_particle_system_positions_z(particle_system);
+    double* const vx = n_body_sim_pro_particle_system_velocities_x(particle_system);
+    double* const vy = n_body_sim_pro_particle_system_velocities_y(particle_system);
+    double* const vz = n_body_sim_pro_particle_system_velocities_z(particle_system);
+    double* const mass = n_body_sim_pro_particle_system_masses(particle_system);
     const double particle_mass = total_mass / (double)count;
 
     double mean_vx = 0.0;
@@ -105,17 +105,17 @@ static void fill_plummer_block(HpcsimParticleSystem* particle_system, uint64_t m
     double mean_vz = 0.0;
     for (size_t offset = 0; offset < count; ++offset) {
         const size_t i = start + offset;
-        HpcsimRandomGenerator generator;
-        hpcsim_random_init(&generator, mix_seed(master_seed, i));
-        const double u = 1.0 - hpcsim_random_next_double(&generator);
+        NBodySimProRandomGenerator generator;
+        n_body_sim_pro_random_init(&generator, mix_seed(master_seed, i));
+        const double u = 1.0 - n_body_sim_pro_random_next_double(&generator);
         const double radius = scale_radius / sqrt(pow(u, -2.0 / 3.0) - 1.0);
         double direction_x;
         double direction_y;
         double direction_z;
         for (;;) {
-            const double gx = hpcsim_random_next_gaussian(&generator);
-            const double gy = hpcsim_random_next_gaussian(&generator);
-            const double gz = hpcsim_random_next_gaussian(&generator);
+            const double gx = n_body_sim_pro_random_next_gaussian(&generator);
+            const double gy = n_body_sim_pro_random_next_gaussian(&generator);
+            const double gz = n_body_sim_pro_random_next_gaussian(&generator);
             const double norm = sqrt(gx * gx + gy * gy + gz * gz);
             if (norm > 1.0e-12) {
                 direction_x = gx / norm;
@@ -131,9 +131,9 @@ static void fill_plummer_block(HpcsimParticleSystem* particle_system, uint64_t m
         const double dispersion =
             sqrt(GRAVITATIONAL_CONSTANT_UNITS * total_mass /
                  (6.0 * sqrt(scale_radius * scale_radius + radius * radius)));
-        const double v_x = hpcsim_random_next_gaussian(&generator) * dispersion;
-        const double v_y = hpcsim_random_next_gaussian(&generator) * dispersion;
-        const double v_z = hpcsim_random_next_gaussian(&generator) * dispersion;
+        const double v_x = n_body_sim_pro_random_next_gaussian(&generator) * dispersion;
+        const double v_y = n_body_sim_pro_random_next_gaussian(&generator) * dispersion;
+        const double v_z = n_body_sim_pro_random_next_gaussian(&generator) * dispersion;
         vx[i] = v_x;
         vy[i] = v_y;
         vz[i] = v_z;
@@ -154,49 +154,49 @@ static void fill_plummer_block(HpcsimParticleSystem* particle_system, uint64_t m
 }
 
 /* Exponential-disk fill for a block of particles. */
-static void fill_disk_block(HpcsimParticleSystem* particle_system, uint64_t master_seed,
+static void fill_disk_block(NBodySimProParticleSystem* particle_system, uint64_t master_seed,
                             size_t start, size_t count, double scale_radius,
                             double disk_scale_height, double circular_speed,
                             double velocity_dispersion, double arm_twist, int arm_count,
                             double particle_mass) {
-    double* const px = hpcsim_particle_system_positions_x(particle_system);
-    double* const py = hpcsim_particle_system_positions_y(particle_system);
-    double* const pz = hpcsim_particle_system_positions_z(particle_system);
-    double* const vx = hpcsim_particle_system_velocities_x(particle_system);
-    double* const vy = hpcsim_particle_system_velocities_y(particle_system);
-    double* const vz = hpcsim_particle_system_velocities_z(particle_system);
-    double* const mass = hpcsim_particle_system_masses(particle_system);
+    double* const px = n_body_sim_pro_particle_system_positions_x(particle_system);
+    double* const py = n_body_sim_pro_particle_system_positions_y(particle_system);
+    double* const pz = n_body_sim_pro_particle_system_positions_z(particle_system);
+    double* const vx = n_body_sim_pro_particle_system_velocities_x(particle_system);
+    double* const vy = n_body_sim_pro_particle_system_velocities_y(particle_system);
+    double* const vz = n_body_sim_pro_particle_system_velocities_z(particle_system);
+    double* const mass = n_body_sim_pro_particle_system_masses(particle_system);
 
     double mean_vx = 0.0;
     double mean_vy = 0.0;
     double mean_vz = 0.0;
     for (size_t offset = 0; offset < count; ++offset) {
         const size_t i = start + offset;
-        HpcsimRandomGenerator generator;
-        hpcsim_random_init(&generator, mix_seed(master_seed, i));
-        const double e1 = -log(1.0 - hpcsim_random_next_double(&generator));
-        const double e2 = -log(1.0 - hpcsim_random_next_double(&generator));
+        NBodySimProRandomGenerator generator;
+        n_body_sim_pro_random_init(&generator, mix_seed(master_seed, i));
+        const double e1 = -log(1.0 - n_body_sim_pro_random_next_double(&generator));
+        const double e2 = -log(1.0 - n_body_sim_pro_random_next_double(&generator));
         const double radius = scale_radius * (e1 + e2);
-        double angle = 2.0 * M_PI * hpcsim_random_next_double(&generator);
+        double angle = 2.0 * M_PI * n_body_sim_pro_random_next_double(&generator);
         if (arm_twist > 0.0 && arm_count > 0) {
             const double arm_index =
-                hpcsim_random_next_double(&generator) * (double)arm_count;
+                n_body_sim_pro_random_next_double(&generator) * (double)arm_count;
             const double arm_angle = 2.0 * M_PI * arm_index / (double)arm_count +
                                      arm_twist * radius / scale_radius;
-            angle = arm_angle + hpcsim_random_next_gaussian(&generator) * 0.15;
+            angle = arm_angle + n_body_sim_pro_random_next_gaussian(&generator) * 0.15;
         }
-        const double height = hpcsim_random_next_gaussian(&generator) * disk_scale_height;
+        const double height = n_body_sim_pro_random_next_gaussian(&generator) * disk_scale_height;
         px[i] = radius * cos(angle);
         py[i] = radius * sin(angle);
         pz[i] = height;
         const double tangential_x = -sin(angle);
         const double tangential_y = cos(angle);
         const double v_x = circular_speed * tangential_x +
-                           hpcsim_random_next_gaussian(&generator) * velocity_dispersion;
+                           n_body_sim_pro_random_next_gaussian(&generator) * velocity_dispersion;
         const double v_y = circular_speed * tangential_y +
-                           hpcsim_random_next_gaussian(&generator) * velocity_dispersion;
+                           n_body_sim_pro_random_next_gaussian(&generator) * velocity_dispersion;
         const double v_z =
-            hpcsim_random_next_gaussian(&generator) * velocity_dispersion * 0.5;
+            n_body_sim_pro_random_next_gaussian(&generator) * velocity_dispersion * 0.5;
         vx[i] = v_x;
         vy[i] = v_y;
         vz[i] = v_z;
@@ -216,15 +216,15 @@ static void fill_disk_block(HpcsimParticleSystem* particle_system, uint64_t mast
     }
 }
 
-static void fill_random_cloud(HpcsimParticleSystem* particle_system, uint64_t seed) {
-    const size_t count = hpcsim_particle_system_particle_count(particle_system);
-    double* const px = hpcsim_particle_system_positions_x(particle_system);
-    double* const py = hpcsim_particle_system_positions_y(particle_system);
-    double* const pz = hpcsim_particle_system_positions_z(particle_system);
-    double* const vx = hpcsim_particle_system_velocities_x(particle_system);
-    double* const vy = hpcsim_particle_system_velocities_y(particle_system);
-    double* const vz = hpcsim_particle_system_velocities_z(particle_system);
-    double* const mass = hpcsim_particle_system_masses(particle_system);
+static void fill_random_cloud(NBodySimProParticleSystem* particle_system, uint64_t seed) {
+    const size_t count = n_body_sim_pro_particle_system_particle_count(particle_system);
+    double* const px = n_body_sim_pro_particle_system_positions_x(particle_system);
+    double* const py = n_body_sim_pro_particle_system_positions_y(particle_system);
+    double* const pz = n_body_sim_pro_particle_system_positions_z(particle_system);
+    double* const vx = n_body_sim_pro_particle_system_velocities_x(particle_system);
+    double* const vy = n_body_sim_pro_particle_system_velocities_y(particle_system);
+    double* const vz = n_body_sim_pro_particle_system_velocities_z(particle_system);
+    double* const mass = n_body_sim_pro_particle_system_masses(particle_system);
     const double particle_mass = 1.0 / (double)count;
 
     double mean_vx = 0.0;
@@ -232,15 +232,15 @@ static void fill_random_cloud(HpcsimParticleSystem* particle_system, uint64_t se
     double mean_vz = 0.0;
 #pragma omp parallel for schedule(static) reduction(+ : mean_vx, mean_vy, mean_vz)
     for (long long i = 0; i < (long long)count; ++i) {
-        HpcsimRandomGenerator generator;
-        hpcsim_random_init(&generator, mix_seed(seed, (size_t)i));
+        NBodySimProRandomGenerator generator;
+        n_body_sim_pro_random_init(&generator, mix_seed(seed, (size_t)i));
         double direction_x;
         double direction_y;
         double direction_z;
         for (;;) {
-            const double gx = hpcsim_random_next_gaussian(&generator);
-            const double gy = hpcsim_random_next_gaussian(&generator);
-            const double gz = hpcsim_random_next_gaussian(&generator);
+            const double gx = n_body_sim_pro_random_next_gaussian(&generator);
+            const double gy = n_body_sim_pro_random_next_gaussian(&generator);
+            const double gz = n_body_sim_pro_random_next_gaussian(&generator);
             const double norm = sqrt(gx * gx + gy * gy + gz * gz);
             if (norm > 1.0e-12) {
                 direction_x = gx / norm;
@@ -249,13 +249,13 @@ static void fill_random_cloud(HpcsimParticleSystem* particle_system, uint64_t se
                 break;
             }
         }
-        const double radius = cbrt(hpcsim_random_next_double(&generator));
+        const double radius = cbrt(n_body_sim_pro_random_next_double(&generator));
         px[i] = radius * direction_x;
         py[i] = radius * direction_y;
         pz[i] = radius * direction_z;
-        const double v_x = hpcsim_random_next_double_range(&generator, -0.05, 0.05);
-        const double v_y = hpcsim_random_next_double_range(&generator, -0.05, 0.05);
-        const double v_z = hpcsim_random_next_double_range(&generator, -0.05, 0.05);
+        const double v_x = n_body_sim_pro_random_next_double_range(&generator, -0.05, 0.05);
+        const double v_y = n_body_sim_pro_random_next_double_range(&generator, -0.05, 0.05);
+        const double v_z = n_body_sim_pro_random_next_double_range(&generator, -0.05, 0.05);
         vx[i] = v_x;
         vy[i] = v_y;
         vz[i] = v_z;
@@ -275,29 +275,29 @@ static void fill_random_cloud(HpcsimParticleSystem* particle_system, uint64_t se
     }
 }
 
-static void fill_open_cluster(HpcsimParticleSystem* particle_system, uint64_t seed) {
-    const size_t count = hpcsim_particle_system_particle_count(particle_system);
-    double* const px = hpcsim_particle_system_positions_x(particle_system);
-    double* const py = hpcsim_particle_system_positions_y(particle_system);
-    double* const pz = hpcsim_particle_system_positions_z(particle_system);
-    double* const vx = hpcsim_particle_system_velocities_x(particle_system);
-    double* const vy = hpcsim_particle_system_velocities_y(particle_system);
-    double* const vz = hpcsim_particle_system_velocities_z(particle_system);
-    double* const mass = hpcsim_particle_system_masses(particle_system);
+static void fill_open_cluster(NBodySimProParticleSystem* particle_system, uint64_t seed) {
+    const size_t count = n_body_sim_pro_particle_system_particle_count(particle_system);
+    double* const px = n_body_sim_pro_particle_system_positions_x(particle_system);
+    double* const py = n_body_sim_pro_particle_system_positions_y(particle_system);
+    double* const pz = n_body_sim_pro_particle_system_positions_z(particle_system);
+    double* const vx = n_body_sim_pro_particle_system_velocities_x(particle_system);
+    double* const vy = n_body_sim_pro_particle_system_velocities_y(particle_system);
+    double* const vz = n_body_sim_pro_particle_system_velocities_z(particle_system);
+    double* const mass = n_body_sim_pro_particle_system_masses(particle_system);
     const double particle_mass = 1.0 / (double)count;
 
     double mean_vx = 0.0;
     double mean_vy = 0.0;
     double mean_vz = 0.0;
     for (size_t i = 0; i < count; ++i) {
-        HpcsimRandomGenerator generator;
-        hpcsim_random_init(&generator, mix_seed(seed, i));
-        px[i] = hpcsim_random_next_gaussian(&generator) * 0.3;
-        py[i] = hpcsim_random_next_gaussian(&generator) * 0.3;
-        pz[i] = hpcsim_random_next_gaussian(&generator) * 0.3;
-        const double v_x = hpcsim_random_next_gaussian(&generator) * 0.02;
-        const double v_y = hpcsim_random_next_gaussian(&generator) * 0.02;
-        const double v_z = hpcsim_random_next_gaussian(&generator) * 0.02;
+        NBodySimProRandomGenerator generator;
+        n_body_sim_pro_random_init(&generator, mix_seed(seed, i));
+        px[i] = n_body_sim_pro_random_next_gaussian(&generator) * 0.3;
+        py[i] = n_body_sim_pro_random_next_gaussian(&generator) * 0.3;
+        pz[i] = n_body_sim_pro_random_next_gaussian(&generator) * 0.3;
+        const double v_x = n_body_sim_pro_random_next_gaussian(&generator) * 0.02;
+        const double v_y = n_body_sim_pro_random_next_gaussian(&generator) * 0.02;
+        const double v_z = n_body_sim_pro_random_next_gaussian(&generator) * 0.02;
         vx[i] = v_x;
         vy[i] = v_y;
         vz[i] = v_z;
@@ -316,24 +316,24 @@ static void fill_open_cluster(HpcsimParticleSystem* particle_system, uint64_t se
     }
 }
 
-HpcsimStatus hpcsim_preset_generate_parallel(HpcsimParticleSystem* particle_system,
-                                             HpcsimSimulationPreset preset,
-                                             const HpcsimPresetParameters* parameters,
-                                             HpcsimError* error) {
+NBodySimProStatus n_body_sim_pro_preset_generate_parallel(NBodySimProParticleSystem* particle_system,
+                                             NBodySimProSimulationPreset preset,
+                                             const NBodySimProPresetParameters* parameters,
+                                             NBodySimProError* error) {
     if (particle_system == NULL || parameters == NULL) {
-        hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
+        n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
                          "particle system and parameters must not be null");
-        return HPCSIM_STATUS_INVALID_ARGUMENT;
+        return N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT;
     }
-    if (hpcsim_particle_system_capacity(particle_system) < parameters->particle_count) {
-        hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
+    if (n_body_sim_pro_particle_system_capacity(particle_system) < parameters->particle_count) {
+        n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
                          "particle system capacity is smaller than requested count");
-        return HPCSIM_STATUS_INVALID_ARGUMENT;
+        return N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT;
     }
 
-    HpcsimStatus status = hpcsim_particle_system_set_particle_count(
+    NBodySimProStatus status = n_body_sim_pro_particle_system_set_particle_count(
         particle_system, parameters->particle_count, error);
-    if (status != HPCSIM_STATUS_OK) {
+    if (status != N_BODY_SIM_PRO_STATUS_OK) {
         return status;
     }
     const size_t count = parameters->particle_count;
@@ -344,92 +344,92 @@ HpcsimStatus hpcsim_preset_generate_parallel(HpcsimParticleSystem* particle_syst
      * then writes onto those resident pages. Writing 0.0 to one element per
      * page is the touch; generation overwrites every element afterwards. */
     double* const first_touch_arrays[10] = {
-        hpcsim_particle_system_positions_x(particle_system),
-        hpcsim_particle_system_positions_y(particle_system),
-        hpcsim_particle_system_positions_z(particle_system),
-        hpcsim_particle_system_velocities_x(particle_system),
-        hpcsim_particle_system_velocities_y(particle_system),
-        hpcsim_particle_system_velocities_z(particle_system),
-        hpcsim_particle_system_accelerations_x(particle_system),
-        hpcsim_particle_system_accelerations_y(particle_system),
-        hpcsim_particle_system_accelerations_z(particle_system),
-        hpcsim_particle_system_masses(particle_system)};
+        n_body_sim_pro_particle_system_positions_x(particle_system),
+        n_body_sim_pro_particle_system_positions_y(particle_system),
+        n_body_sim_pro_particle_system_positions_z(particle_system),
+        n_body_sim_pro_particle_system_velocities_x(particle_system),
+        n_body_sim_pro_particle_system_velocities_y(particle_system),
+        n_body_sim_pro_particle_system_velocities_z(particle_system),
+        n_body_sim_pro_particle_system_accelerations_x(particle_system),
+        n_body_sim_pro_particle_system_accelerations_y(particle_system),
+        n_body_sim_pro_particle_system_accelerations_z(particle_system),
+        n_body_sim_pro_particle_system_masses(particle_system)};
 #pragma omp parallel for schedule(static)
     for (int array = 0; array < 10; ++array) {
-        hpcsim_memory_first_touch(first_touch_arrays[array], count);
+        n_body_sim_pro_memory_first_touch(first_touch_arrays[array], count);
     }
 
     switch (preset) {
-        case HPCSIM_PRESET_TWO_BODY:
+        case N_BODY_SIM_PRO_PRESET_TWO_BODY:
             if (count != 2) {
-                hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
+                n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
                                  "two_body preset requires exactly 2 particles");
-                return HPCSIM_STATUS_INVALID_ARGUMENT;
+                return N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT;
             }
             fill_two_body(particle_system, error);
             break;
-        case HPCSIM_PRESET_SOLAR_SYSTEM:
+        case N_BODY_SIM_PRO_PRESET_SOLAR_SYSTEM:
             fill_solar_system(particle_system, seed, error);
             break;
-        case HPCSIM_PRESET_RANDOM_CLOUD:
+        case N_BODY_SIM_PRO_PRESET_RANDOM_CLOUD:
             fill_random_cloud(particle_system, seed);
             break;
-        case HPCSIM_PRESET_OPEN_CLUSTER:
+        case N_BODY_SIM_PRO_PRESET_OPEN_CLUSTER:
             fill_open_cluster(particle_system, seed);
             break;
-        case HPCSIM_PRESET_GLOBULAR_CLUSTER:
-        case HPCSIM_PRESET_ELLIPTICAL_GALAXY: {
-            const double scale_radius = preset == HPCSIM_PRESET_GLOBULAR_CLUSTER ? 1.0 : 2.0;
+        case N_BODY_SIM_PRO_PRESET_GLOBULAR_CLUSTER:
+        case N_BODY_SIM_PRO_PRESET_ELLIPTICAL_GALAXY: {
+            const double scale_radius = preset == N_BODY_SIM_PRO_PRESET_GLOBULAR_CLUSTER ? 1.0 : 2.0;
             fill_plummer_block(particle_system, seed, 0, count, scale_radius, 1.0);
             break;
         }
-        case HPCSIM_PRESET_SPIRAL_GALAXY: {
+        case N_BODY_SIM_PRO_PRESET_SPIRAL_GALAXY: {
             const double particle_mass = 1.0 / (double)count;
             fill_disk_block(particle_system, seed, 0, count, 0.7, 0.1, 1.0, 0.12, 3.5, 2,
                             particle_mass);
             break;
         }
-        case HPCSIM_PRESET_GALAXY_COLLISION: {
+        case N_BODY_SIM_PRO_PRESET_GALAXY_COLLISION: {
             const size_t half = count / 2;
             const double particle_mass = 0.5 / (double)half;
             fill_disk_block(particle_system, mix_seed(seed, 0), 0, half, 0.7, 0.1, 1.0,
                             0.12, 0.0, 0, particle_mass);
             fill_disk_block(particle_system, mix_seed(seed, 1), half, half, 0.7, 0.1, 1.0,
                             0.12, 0.0, 0, particle_mass);
-            double* const vx = hpcsim_particle_system_velocities_x(particle_system);
+            double* const vx = n_body_sim_pro_particle_system_velocities_x(particle_system);
             const double approach_speed = 0.35;
             for (size_t i = 0; i < count; ++i) {
                 vx[i] += i < half ? approach_speed : -approach_speed;
             }
             break;
         }
-        case HPCSIM_PRESET_TRIPLE_GALAXY: {
+        case N_BODY_SIM_PRO_PRESET_TRIPLE_GALAXY: {
             const size_t third = count / 3;
             const double galaxy_mass = 1.0 / 3.0;
             const double centers[3][3] = {{-1.8, 0.0, 0.0}, {1.8, 0.0, 0.0},
                                           {0.0, 1.8, 0.0}};
             for (int galaxy = 0; galaxy < 3; ++galaxy) {
-                double* const px = hpcsim_particle_system_positions_x(particle_system);
-                double* const py = hpcsim_particle_system_positions_y(particle_system);
-                double* const pz = hpcsim_particle_system_positions_z(particle_system);
+                double* const px = n_body_sim_pro_particle_system_positions_x(particle_system);
+                double* const py = n_body_sim_pro_particle_system_positions_y(particle_system);
+                double* const pz = n_body_sim_pro_particle_system_positions_z(particle_system);
                 const size_t start = (size_t)galaxy * third;
                 double mean_vx = 0.0;
                 double mean_vy = 0.0;
                 double mean_vz = 0.0;
                 for (size_t offset = 0; offset < third; ++offset) {
                     const size_t i = start + offset;
-                    HpcsimRandomGenerator generator;
-                    hpcsim_random_init(&generator, mix_seed(mix_seed(seed, (size_t)galaxy),
+                    NBodySimProRandomGenerator generator;
+                    n_body_sim_pro_random_init(&generator, mix_seed(mix_seed(seed, (size_t)galaxy),
                                                             i));
-                    const double u = 1.0 - hpcsim_random_next_double(&generator);
+                    const double u = 1.0 - n_body_sim_pro_random_next_double(&generator);
                     const double radius = 0.7 / sqrt(pow(u, -2.0 / 3.0) - 1.0);
                     double direction_x;
                     double direction_y;
                     double direction_z;
                     for (;;) {
-                        const double gx = hpcsim_random_next_gaussian(&generator);
-                        const double gy = hpcsim_random_next_gaussian(&generator);
-                        const double gz = hpcsim_random_next_gaussian(&generator);
+                        const double gx = n_body_sim_pro_random_next_gaussian(&generator);
+                        const double gy = n_body_sim_pro_random_next_gaussian(&generator);
+                        const double gz = n_body_sim_pro_random_next_gaussian(&generator);
                         const double norm = sqrt(gx * gx + gy * gy + gz * gz);
                         if (norm > 1.0e-12) {
                             direction_x = gx / norm;
@@ -444,13 +444,13 @@ HpcsimStatus hpcsim_preset_generate_parallel(HpcsimParticleSystem* particle_syst
                     const double dispersion =
                         sqrt(GRAVITATIONAL_CONSTANT_UNITS * galaxy_mass /
                              (6.0 * sqrt(0.49 + radius * radius)));
-                    double* const vx = hpcsim_particle_system_velocities_x(particle_system);
-                    double* const vy = hpcsim_particle_system_velocities_y(particle_system);
-                    double* const vz = hpcsim_particle_system_velocities_z(particle_system);
-                    double* const mass = hpcsim_particle_system_masses(particle_system);
-                    const double v_x = hpcsim_random_next_gaussian(&generator) * dispersion;
-                    const double v_y = hpcsim_random_next_gaussian(&generator) * dispersion;
-                    const double v_z = hpcsim_random_next_gaussian(&generator) * dispersion;
+                    double* const vx = n_body_sim_pro_particle_system_velocities_x(particle_system);
+                    double* const vy = n_body_sim_pro_particle_system_velocities_y(particle_system);
+                    double* const vz = n_body_sim_pro_particle_system_velocities_z(particle_system);
+                    double* const mass = n_body_sim_pro_particle_system_masses(particle_system);
+                    const double v_x = n_body_sim_pro_random_next_gaussian(&generator) * dispersion;
+                    const double v_y = n_body_sim_pro_random_next_gaussian(&generator) * dispersion;
+                    const double v_z = n_body_sim_pro_random_next_gaussian(&generator) * dispersion;
                     vx[i] = v_x;
                     vy[i] = v_y;
                     vz[i] = v_z;
@@ -462,9 +462,9 @@ HpcsimStatus hpcsim_preset_generate_parallel(HpcsimParticleSystem* particle_syst
                 mean_vx /= (double)third;
                 mean_vy /= (double)third;
                 mean_vz /= (double)third;
-                double* const vx = hpcsim_particle_system_velocities_x(particle_system);
-                double* const vy = hpcsim_particle_system_velocities_y(particle_system);
-                double* const vz = hpcsim_particle_system_velocities_z(particle_system);
+                double* const vx = n_body_sim_pro_particle_system_velocities_x(particle_system);
+                double* const vy = n_body_sim_pro_particle_system_velocities_y(particle_system);
+                double* const vz = n_body_sim_pro_particle_system_velocities_z(particle_system);
                 for (size_t offset = 0; offset < third; ++offset) {
                     const size_t i = start + offset;
                     vx[i] -= mean_vx;
@@ -474,9 +474,9 @@ HpcsimStatus hpcsim_preset_generate_parallel(HpcsimParticleSystem* particle_syst
             }
             break;
         }
-        case HPCSIM_PRESET_COUNT:
+        case N_BODY_SIM_PRO_PRESET_COUNT:
             break;
     }
 
-    return HPCSIM_STATUS_OK;
+    return N_BODY_SIM_PRO_STATUS_OK;
 }

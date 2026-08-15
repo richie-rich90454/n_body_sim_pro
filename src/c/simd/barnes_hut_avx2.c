@@ -1,4 +1,4 @@
-#include "hpcsim/barnes_hut/barnes_hut.h"
+#include "n_body_sim_pro/barnes_hut/barnes_hut.h"
 
 #include "../barnes_hut/barnes_hut_internal.h"
 
@@ -77,9 +77,9 @@ static void flush_stage(SimdAccumulator* accumulator, const double stage_dx[4],
     accumulator->z = _mm256_fmadd_pd(force_scale, delta_z, accumulator->z);
 }
 
-static void evaluate_particle_batched(const HpcsimBarnesHutTree* tree,
-                                      const HpcsimParticleSystemView* view,
-                                      const HpcsimGravity* gravity, size_t query_particle,
+static void evaluate_particle_batched(const NBodySimProBarnesHutTree* tree,
+                                      const NBodySimProParticleSystemView* view,
+                                      const NBodySimProGravity* gravity, size_t query_particle,
                                       double* acceleration_x, double* acceleration_y,
                                       double* acceleration_z, size_t* approximations,
                                       size_t* exact_interactions) {
@@ -117,7 +117,7 @@ static void evaluate_particle_batched(const HpcsimBarnesHutTree* tree,
     size_t local_approximations = 0;
     size_t local_exact_interactions = 0;
 
-#define HPCSIM_BH_STAGE_OR_SCALAR(d_x, d_y, d_z, mass)                 \
+#define N_BODY_SIM_PRO_BH_STAGE_OR_SCALAR(d_x, d_y, d_z, mass)                 \
     do {                                                               \
         if (stage_size >= 4) {                                         \
             flush_stage(&accumulator, stage_dx, stage_dy, stage_dz,    \
@@ -142,7 +142,7 @@ static void evaluate_particle_batched(const HpcsimBarnesHutTree* tree,
         if (node->particle_index != -1) {
             if ((size_t)node->particle_index != query_particle) {
                 const size_t j = (size_t)node->particle_index;
-                HPCSIM_BH_STAGE_OR_SCALAR(view->positions_x[j] - query_x,
+                N_BODY_SIM_PRO_BH_STAGE_OR_SCALAR(view->positions_x[j] - query_x,
                                           view->positions_y[j] - query_y,
                                           view->positions_z[j] - query_z, view->masses[j]);
                 ++local_exact_interactions;
@@ -158,7 +158,7 @@ static void evaluate_particle_batched(const HpcsimBarnesHutTree* tree,
 
         if (distance_squared > 0.0 &&
             cell_size_squared < theta_squared * distance_squared) {
-            HPCSIM_BH_STAGE_OR_SCALAR(d_x, d_y, d_z, node->total_mass);
+            N_BODY_SIM_PRO_BH_STAGE_OR_SCALAR(d_x, d_y, d_z, node->total_mass);
             ++local_approximations;
             continue;
         }
@@ -226,12 +226,12 @@ static void evaluate_particle_batched(const HpcsimBarnesHutTree* tree,
                       scalar_acceleration_z;
     *approximations += local_approximations;
     *exact_interactions += local_exact_interactions;
-#undef HPCSIM_BH_STAGE_OR_SCALAR
+#undef N_BODY_SIM_PRO_BH_STAGE_OR_SCALAR
 }
 
-static HpcsimStatus evaluate_all(HpcsimBarnesHutTree* tree,
-                                 const HpcsimParticleSystemView* view,
-                                 const HpcsimGravity* gravity, int parallel) {
+static NBodySimProStatus evaluate_all(NBodySimProBarnesHutTree* tree,
+                                 const NBodySimProParticleSystemView* view,
+                                 const NBodySimProGravity* gravity, int parallel) {
     const size_t particle_count = view->particle_count;
     double* const accelerations_x = view->accelerations_x;
     double* const accelerations_y = view->accelerations_y;
@@ -259,59 +259,59 @@ static HpcsimStatus evaluate_all(HpcsimBarnesHutTree* tree,
 
     tree->stats.accepted_approximations = total_approximations;
     tree->stats.exact_interactions = total_exact_interactions;
-    return HPCSIM_STATUS_OK;
+    return N_BODY_SIM_PRO_STATUS_OK;
 }
 
-static HpcsimStatus evaluate_with_build(HpcsimBarnesHutTree* tree,
-                                        const HpcsimParticleSystemView* view,
-                                        const HpcsimGravity* gravity, int parallel,
-                                        HpcsimError* error) {
+static NBodySimProStatus evaluate_with_build(NBodySimProBarnesHutTree* tree,
+                                        const NBodySimProParticleSystemView* view,
+                                        const NBodySimProGravity* gravity, int parallel,
+                                        NBodySimProError* error) {
     if (tree == NULL || view == NULL || gravity == NULL) {
-        hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
+        n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
                          "tree, view, and gravity parameters must not be null");
-        return HPCSIM_STATUS_INVALID_ARGUMENT;
+        return N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT;
     }
-    const double build_start = hpcsim_barnes_hut_wall_time_seconds();
-    HpcsimStatus status = hpcsim_barnes_hut_build_tree(tree, view, error);
-    if (status != HPCSIM_STATUS_OK) {
+    const double build_start = n_body_sim_pro_barnes_hut_wall_time_seconds();
+    NBodySimProStatus status = n_body_sim_pro_barnes_hut_build_tree(tree, view, error);
+    if (status != N_BODY_SIM_PRO_STATUS_OK) {
         return status;
     }
-    const double build_finish = hpcsim_barnes_hut_wall_time_seconds();
+    const double build_finish = n_body_sim_pro_barnes_hut_wall_time_seconds();
 
-    const double evaluation_start = hpcsim_barnes_hut_wall_time_seconds();
+    const double evaluation_start = n_body_sim_pro_barnes_hut_wall_time_seconds();
     status = evaluate_all(tree, &tree->reordered_view, gravity, parallel);
-    const double evaluation_finish = hpcsim_barnes_hut_wall_time_seconds();
+    const double evaluation_finish = n_body_sim_pro_barnes_hut_wall_time_seconds();
 
-    hpcsim_barnes_hut_scatter_accelerations(tree, view);
+    n_body_sim_pro_barnes_hut_scatter_accelerations(tree, view);
     tree->stats.build_time_seconds = build_finish - build_start;
     tree->stats.evaluation_time_seconds = evaluation_finish - evaluation_start;
     return status;
 }
 
-HpcsimStatus hpcsim_barnes_hut_compute_acceleration_avx2(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
-    HpcsimError* error) {
-    return evaluate_with_build((HpcsimBarnesHutTree*)context, view, gravity, 0, error);
+NBodySimProStatus n_body_sim_pro_barnes_hut_compute_acceleration_avx2(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error) {
+    return evaluate_with_build((NBodySimProBarnesHutTree*)context, view, gravity, 0, error);
 }
 
-HpcsimStatus hpcsim_barnes_hut_compute_acceleration_openmp_avx2(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
-    HpcsimError* error) {
-    return evaluate_with_build((HpcsimBarnesHutTree*)context, view, gravity, 1, error);
+NBodySimProStatus n_body_sim_pro_barnes_hut_compute_acceleration_openmp_avx2(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error) {
+    return evaluate_with_build((NBodySimProBarnesHutTree*)context, view, gravity, 1, error);
 }
 
 #else /* !__AVX2__ */
 
-HpcsimStatus hpcsim_barnes_hut_compute_acceleration_avx2(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
-    HpcsimError* error) {
-    return hpcsim_barnes_hut_compute_acceleration(view, gravity, context, error);
+NBodySimProStatus n_body_sim_pro_barnes_hut_compute_acceleration_avx2(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error) {
+    return n_body_sim_pro_barnes_hut_compute_acceleration(view, gravity, context, error);
 }
 
-HpcsimStatus hpcsim_barnes_hut_compute_acceleration_openmp_avx2(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
-    HpcsimError* error) {
-    return hpcsim_barnes_hut_compute_acceleration(view, gravity, context, error);
+NBodySimProStatus n_body_sim_pro_barnes_hut_compute_acceleration_openmp_avx2(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error) {
+    return n_body_sim_pro_barnes_hut_compute_acceleration(view, gravity, context, error);
 }
 
 #endif /* __AVX2__ */

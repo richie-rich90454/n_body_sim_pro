@@ -1,4 +1,4 @@
-#include "hpcsim/generation/random.h"
+#include "n_body_sim_pro/generation/random.h"
 
 #include <math.h>
 
@@ -18,14 +18,14 @@ static uint64_t rotate_left(uint64_t value, int shift) {
     return (value << shift) | (value >> (64 - shift));
 }
 
-void hpcsim_random_init(HpcsimRandomGenerator* generator, uint64_t seed) {
+void n_body_sim_pro_random_init(NBodySimProRandomGenerator* generator, uint64_t seed) {
     uint64_t splitmix_state = seed;
     for (int i = 0; i < 4; ++i) {
         generator->state[i] = splitmix64(&splitmix_state);
     }
 }
 
-uint64_t hpcsim_random_next_u64(HpcsimRandomGenerator* generator) {
+uint64_t n_body_sim_pro_random_next_u64(NBodySimProRandomGenerator* generator) {
     const uint64_t result = rotate_left(generator->state[1] * 5, 7) * 9;
     const uint64_t temporary = generator->state[1] << 17;
 
@@ -39,20 +39,20 @@ uint64_t hpcsim_random_next_u64(HpcsimRandomGenerator* generator) {
     return result;
 }
 
-double hpcsim_random_next_double(HpcsimRandomGenerator* generator) {
-    return (double)(hpcsim_random_next_u64(generator) >> 11) * (1.0 / 9007199254740992.0);
+double n_body_sim_pro_random_next_double(NBodySimProRandomGenerator* generator) {
+    return (double)(n_body_sim_pro_random_next_u64(generator) >> 11) * (1.0 / 9007199254740992.0);
 }
 
-double hpcsim_random_next_double_range(HpcsimRandomGenerator* generator,
+double n_body_sim_pro_random_next_double_range(NBodySimProRandomGenerator* generator,
                                        double minimum, double maximum) {
-    return minimum + (maximum - minimum) * hpcsim_random_next_double(generator);
+    return minimum + (maximum - minimum) * n_body_sim_pro_random_next_double(generator);
 }
 
-double hpcsim_random_next_gaussian(HpcsimRandomGenerator* generator) {
+double n_body_sim_pro_random_next_gaussian(NBodySimProRandomGenerator* generator) {
     double u1 = 0.0;
     while (u1 == 0.0) {
-        u1 = hpcsim_random_next_double(generator);
+        u1 = n_body_sim_pro_random_next_double(generator);
     }
-    const double u2 = hpcsim_random_next_double(generator);
+    const double u2 = n_body_sim_pro_random_next_double(generator);
     return sqrt(-2.0 * log(u1)) * cos(2.0 * M_PI * u2);
 }

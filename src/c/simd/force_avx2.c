@@ -1,4 +1,4 @@
-#include "hpcsim/physics/gravity.h"
+#include "n_body_sim_pro/physics/gravity.h"
 
 #include <math.h>
 
@@ -35,8 +35,8 @@ static double horizontal_sum_4(__m256d values) {
     return _mm_cvtsd_f64(sum);
 }
 
-static void compute_acceleration_block(const HpcsimParticleSystemView* view,
-                                       const HpcsimGravity* gravity, size_t i) {
+static void compute_acceleration_block(const NBodySimProParticleSystemView* view,
+                                       const NBodySimProGravity* gravity, size_t i) {
     const size_t particle_count = view->particle_count;
     const double* const positions_x = view->positions_x;
     const double* const positions_y = view->positions_y;
@@ -128,29 +128,29 @@ static void compute_acceleration_block(const HpcsimParticleSystemView* view,
         horizontal_sum_4(acceleration_z) + scalar_acceleration_z;
 }
 
-HpcsimStatus hpcsim_gravity_compute_acceleration_avx2(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
-    HpcsimError* error) {
+NBodySimProStatus n_body_sim_pro_gravity_compute_acceleration_avx2(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error) {
     (void)context;
     if (view == NULL || gravity == NULL) {
-        hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
+        n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
                          "view and gravity parameters must not be null");
-        return HPCSIM_STATUS_INVALID_ARGUMENT;
+        return N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT;
     }
     for (size_t i = 0; i < view->particle_count; ++i) {
         compute_acceleration_block(view, gravity, i);
     }
-    return HPCSIM_STATUS_OK;
+    return N_BODY_SIM_PRO_STATUS_OK;
 }
 
-HpcsimStatus hpcsim_gravity_compute_acceleration_openmp_avx2(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
-    HpcsimError* error) {
+NBodySimProStatus n_body_sim_pro_gravity_compute_acceleration_openmp_avx2(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error) {
     (void)context;
     if (view == NULL || gravity == NULL) {
-        hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
+        n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
                          "view and gravity parameters must not be null");
-        return HPCSIM_STATUS_INVALID_ARGUMENT;
+        return N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT;
     }
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static)
@@ -158,21 +158,21 @@ HpcsimStatus hpcsim_gravity_compute_acceleration_openmp_avx2(
     for (long long i = 0; i < (long long)view->particle_count; ++i) {
         compute_acceleration_block(view, gravity, (size_t)i);
     }
-    return HPCSIM_STATUS_OK;
+    return N_BODY_SIM_PRO_STATUS_OK;
 }
 
 #else /* !__AVX2__ */
 
-HpcsimStatus hpcsim_gravity_compute_acceleration_avx2(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
-    HpcsimError* error) {
-    return hpcsim_gravity_compute_acceleration_reference(view, gravity, context, error);
+NBodySimProStatus n_body_sim_pro_gravity_compute_acceleration_avx2(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error) {
+    return n_body_sim_pro_gravity_compute_acceleration_reference(view, gravity, context, error);
 }
 
-HpcsimStatus hpcsim_gravity_compute_acceleration_openmp_avx2(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
-    HpcsimError* error) {
-    return hpcsim_gravity_compute_acceleration_openmp(view, gravity, context, error);
+NBodySimProStatus n_body_sim_pro_gravity_compute_acceleration_openmp_avx2(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error) {
+    return n_body_sim_pro_gravity_compute_acceleration_openmp(view, gravity, context, error);
 }
 
 #endif /* __AVX2__ */

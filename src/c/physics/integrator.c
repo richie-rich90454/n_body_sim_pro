@@ -1,23 +1,23 @@
-#include "hpcsim/physics/integrator.h"
+#include "n_body_sim_pro/physics/integrator.h"
 
-const char* hpcsim_integrator_type_string(HpcsimIntegratorType integrator) {
+const char* n_body_sim_pro_integrator_type_string(NBodySimProIntegratorType integrator) {
     switch (integrator) {
-        case HPCSIM_INTEGRATOR_EULER:
+        case N_BODY_SIM_PRO_INTEGRATOR_EULER:
             return "euler";
-        case HPCSIM_INTEGRATOR_LEAPFROG:
+        case N_BODY_SIM_PRO_INTEGRATOR_LEAPFROG:
             return "leapfrog";
-        case HPCSIM_INTEGRATOR_VELOCITY_VERLET:
+        case N_BODY_SIM_PRO_INTEGRATOR_VELOCITY_VERLET:
             return "velocity_verlet";
     }
     return "unknown";
 }
 
-static HpcsimStatus advance_euler(HpcsimParticleSystemView* view,
-                                  const HpcsimGravity* gravity, double timestep,
-                                  HpcsimForceFunction force_function,
-                                  void* force_context, HpcsimError* error) {
-    HpcsimStatus status = force_function(view, gravity, force_context, error);
-    if (status != HPCSIM_STATUS_OK) {
+static NBodySimProStatus advance_euler(NBodySimProParticleSystemView* view,
+                                  const NBodySimProGravity* gravity, double timestep,
+                                  NBodySimProForceFunction force_function,
+                                  void* force_context, NBodySimProError* error) {
+    NBodySimProStatus status = force_function(view, gravity, force_context, error);
+    if (status != N_BODY_SIM_PRO_STATUS_OK) {
         return status;
     }
 
@@ -41,13 +41,13 @@ static HpcsimStatus advance_euler(HpcsimParticleSystemView* view,
         velocities_y[i] += accelerations_y[i] * timestep;
         velocities_z[i] += accelerations_z[i] * timestep;
     }
-    return HPCSIM_STATUS_OK;
+    return N_BODY_SIM_PRO_STATUS_OK;
 }
 
-static HpcsimStatus advance_leapfrog(HpcsimParticleSystemView* view,
-                                     const HpcsimGravity* gravity, double timestep,
-                                     HpcsimForceFunction force_function,
-                                     void* force_context, HpcsimError* error) {
+static NBodySimProStatus advance_leapfrog(NBodySimProParticleSystemView* view,
+                                     const NBodySimProGravity* gravity, double timestep,
+                                     NBodySimProForceFunction force_function,
+                                     void* force_context, NBodySimProError* error) {
     const size_t particle_count = view->particle_count;
     double* const positions_x = view->positions_x;
     double* const positions_y = view->positions_y;
@@ -71,8 +71,8 @@ static HpcsimStatus advance_leapfrog(HpcsimParticleSystemView* view,
         positions_z[i] += velocities_z[i] * timestep;
     }
 
-    HpcsimStatus status = force_function(view, gravity, force_context, error);
-    if (status != HPCSIM_STATUS_OK) {
+    NBodySimProStatus status = force_function(view, gravity, force_context, error);
+    if (status != N_BODY_SIM_PRO_STATUS_OK) {
         return status;
     }
 
@@ -81,13 +81,13 @@ static HpcsimStatus advance_leapfrog(HpcsimParticleSystemView* view,
         velocities_y[i] += accelerations_y[i] * half_timestep;
         velocities_z[i] += accelerations_z[i] * half_timestep;
     }
-    return HPCSIM_STATUS_OK;
+    return N_BODY_SIM_PRO_STATUS_OK;
 }
 
-static HpcsimStatus advance_velocity_verlet(HpcsimParticleSystemView* view,
-                                            const HpcsimGravity* gravity, double timestep,
-                                            HpcsimForceFunction force_function,
-                                            void* force_context, HpcsimError* error) {
+static NBodySimProStatus advance_velocity_verlet(NBodySimProParticleSystemView* view,
+                                            const NBodySimProGravity* gravity, double timestep,
+                                            NBodySimProForceFunction force_function,
+                                            void* force_context, NBodySimProError* error) {
     /*
      * Classic velocity Verlet updates are
      *   x' = x + v*dt + 0.5*a*dt^2
@@ -125,8 +125,8 @@ static HpcsimStatus advance_velocity_verlet(HpcsimParticleSystemView* view,
         positions_z[i] += velocities_z[i] * timestep;
     }
 
-    HpcsimStatus status = force_function(view, gravity, force_context, error);
-    if (status != HPCSIM_STATUS_OK) {
+    NBodySimProStatus status = force_function(view, gravity, force_context, error);
+    if (status != N_BODY_SIM_PRO_STATUS_OK) {
         return status;
     }
 
@@ -135,38 +135,38 @@ static HpcsimStatus advance_velocity_verlet(HpcsimParticleSystemView* view,
         velocities_y[i] += accelerations_y[i] * half_timestep;
         velocities_z[i] += accelerations_z[i] * half_timestep;
     }
-    return HPCSIM_STATUS_OK;
+    return N_BODY_SIM_PRO_STATUS_OK;
 }
 
-HpcsimStatus hpcsim_integrator_advance(HpcsimParticleSystemView* view,
-                                       const HpcsimGravity* gravity,
-                                       HpcsimIntegratorType integrator,
+NBodySimProStatus n_body_sim_pro_integrator_advance(NBodySimProParticleSystemView* view,
+                                       const NBodySimProGravity* gravity,
+                                       NBodySimProIntegratorType integrator,
                                        double timestep,
-                                       HpcsimForceFunction force_function,
-                                       void* force_context, HpcsimError* error) {
+                                       NBodySimProForceFunction force_function,
+                                       void* force_context, NBodySimProError* error) {
     if (view == NULL || gravity == NULL || force_function == NULL) {
-        hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
+        n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
                          "view, gravity, and force function must not be null");
-        return HPCSIM_STATUS_INVALID_ARGUMENT;
+        return N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT;
     }
     if (timestep <= 0.0) {
-        hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
+        n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
                          "timestep must be positive");
-        return HPCSIM_STATUS_INVALID_ARGUMENT;
+        return N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT;
     }
 
     switch (integrator) {
-        case HPCSIM_INTEGRATOR_EULER:
+        case N_BODY_SIM_PRO_INTEGRATOR_EULER:
             return advance_euler(view, gravity, timestep, force_function, force_context,
                                  error);
-        case HPCSIM_INTEGRATOR_LEAPFROG:
+        case N_BODY_SIM_PRO_INTEGRATOR_LEAPFROG:
             return advance_leapfrog(view, gravity, timestep, force_function, force_context,
                                     error);
-        case HPCSIM_INTEGRATOR_VELOCITY_VERLET:
+        case N_BODY_SIM_PRO_INTEGRATOR_VELOCITY_VERLET:
             return advance_velocity_verlet(view, gravity, timestep, force_function,
                                            force_context, error);
     }
-    hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
+    n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
                      "unknown integrator type");
-    return HPCSIM_STATUS_INVALID_ARGUMENT;
+    return N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT;
 }

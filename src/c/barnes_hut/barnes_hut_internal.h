@@ -1,7 +1,7 @@
-#ifndef HPCSIM_BARNES_HUT_INTERNAL_H
-#define HPCSIM_BARNES_HUT_INTERNAL_H
+#ifndef N_BODY_SIM_PRO_BARNES_HUT_INTERNAL_H
+#define N_BODY_SIM_PRO_BARNES_HUT_INTERNAL_H
 
-#include "hpcsim/barnes_hut/barnes_hut.h"
+#include "n_body_sim_pro/barnes_hut/barnes_hut.h"
 
 #include <stdint.h>
 
@@ -20,7 +20,7 @@ typedef struct BarnesHutNode {
     double total_mass;
 } BarnesHutNode;
 
-struct HpcsimBarnesHutTree {
+struct NBodySimProBarnesHutTree {
     BarnesHutNode* nodes;
     size_t node_capacity;
     size_t node_count;
@@ -29,8 +29,8 @@ struct HpcsimBarnesHutTree {
     double root_center_z;
     double root_half_size;
     double theta;
-    const HpcsimParticleSystemView* build_view;
-    HpcsimBarnesHutStats stats;
+    const NBodySimProParticleSystemView* build_view;
+    NBodySimProBarnesHutStats stats;
 
     uint64_t* morton_keys;
     size_t* permutation;
@@ -43,7 +43,7 @@ struct HpcsimBarnesHutTree {
     double* reordered_accelerations_x;
     double* reordered_accelerations_y;
     double* reordered_accelerations_z;
-    HpcsimParticleSystemView reordered_view;
+    NBodySimProParticleSystemView reordered_view;
     size_t reordered_count;
 };
 
@@ -52,25 +52,25 @@ struct HpcsimBarnesHutTree {
  * tree's reordered_view holds the Morton-ordered particles and its
  * permutation maps reordered position -> original index.
  */
-HpcsimStatus hpcsim_barnes_hut_build_tree(HpcsimBarnesHutTree* tree,
-                                          const HpcsimParticleSystemView* view,
-                                          HpcsimError* error);
+NBodySimProStatus n_body_sim_pro_barnes_hut_build_tree(NBodySimProBarnesHutTree* tree,
+                                          const NBodySimProParticleSystemView* view,
+                                          NBodySimProError* error);
 
 /*
  * Scalar per-particle evaluation over the tree's reordered view. Used as the
  * fallback for the SIMD traversal's tail and on CPUs without AVX2.
  */
-void hpcsim_barnes_hut_evaluate_particle_scalar(
-    const HpcsimBarnesHutTree* tree, const HpcsimParticleSystemView* view,
-    const HpcsimGravity* gravity, size_t query_particle, double* acceleration_x,
+void n_body_sim_pro_barnes_hut_evaluate_particle_scalar(
+    const NBodySimProBarnesHutTree* tree, const NBodySimProParticleSystemView* view,
+    const NBodySimProGravity* gravity, size_t query_particle, double* acceleration_x,
     double* acceleration_y, double* acceleration_z, size_t* approximations,
     size_t* exact_interactions);
 
 /* Copy the tree's reordered accelerations back into the caller's view. */
-void hpcsim_barnes_hut_scatter_accelerations(const HpcsimBarnesHutTree* tree,
-                                             const HpcsimParticleSystemView* view);
+void n_body_sim_pro_barnes_hut_scatter_accelerations(const NBodySimProBarnesHutTree* tree,
+                                             const NBodySimProParticleSystemView* view);
 
 /* Monotonic wall clock in seconds (shared by all force-evaluation variants). */
-double hpcsim_barnes_hut_wall_time_seconds(void);
+double n_body_sim_pro_barnes_hut_wall_time_seconds(void);
 
-#endif /* HPCSIM_BARNES_HUT_INTERNAL_H */
+#endif /* N_BODY_SIM_PRO_BARNES_HUT_INTERNAL_H */

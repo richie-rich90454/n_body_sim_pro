@@ -1,4 +1,4 @@
-#include "hpcsim/memory/allocation_tracker.h"
+#include "n_body_sim_pro/memory/allocation_tracker.h"
 
 #include <stdatomic.h>
 #include <string.h>
@@ -7,13 +7,13 @@
 /*
  * Thread-local event staging.
  *
- * The allocator calls hpcsim_allocation_tracker_record on every tracked
+ * The allocator calls n_body_sim_pro_allocation_tracker_record on every tracked
  * allocation/free. Events land in a thread-local buffer (no locking), and
  * when the buffer fills it is flushed into the shared ring under one mutex.
  * This keeps per-allocation cost to a TLS store plus one branch.
  */
 
-static __thread HpcsimAllocationEvent thread_events[HPCSIM_ALLOCATION_TRACKER_THREAD_BUFFER_SIZE];
+static __thread NBodySimProAllocationEvent thread_events[N_BODY_SIM_PRO_ALLOCATION_TRACKER_THREAD_BUFFER_SIZE];
 static __thread unsigned int thread_event_count = 0;
 static __thread int thread_event_staged = 0;
 
@@ -22,7 +22,7 @@ static atomic_uint_fast64_t next_sequence;
 
 /*
  * The shared tracker state is protected by a spinlock. Contention is low:
- * a thread acquires it at most once per HPCSIM_ALLOCATION_TRACKER_THREAD_BUFFER_SIZE
+ * a thread acquires it at most once per N_BODY_SIM_PRO_ALLOCATION_TRACKER_THREAD_BUFFER_SIZE
  * events, so the tracking hot path stays lock-free.
  */
 static atomic_flag tracker_mutex = ATOMIC_FLAG_INIT;
@@ -46,12 +46,12 @@ typedef struct TrackerState {
     size_t total_allocated_bytes;
     size_t total_freed_bytes;
     size_t dropped_events;
-    size_t live_bytes_by_category[HPCSIM_ALLOCATION_CATEGORY_COUNT];
-    size_t live_allocations_by_category[HPCSIM_ALLOCATION_CATEGORY_COUNT];
+    size_t live_bytes_by_category[N_BODY_SIM_PRO_ALLOCATION_CATEGORY_COUNT];
+    size_t live_allocations_by_category[N_BODY_SIM_PRO_ALLOCATION_CATEGORY_COUNT];
     size_t allocations_since_poll;
     size_t deallocations_since_poll;
     double poll_window_seconds;
-    HpcsimAllocationEvent ring[HPCSIM_ALLOCATION_TRACKER_EVENT_RING_SIZE];
+    NBodySimProAllocationEvent ring[N_BODY_SIM_PRO_ALLOCATION_TRACKER_EVENT_RING_SIZE];
     size_t ring_count;
     size_t ring_next;
 } TrackerState;
@@ -73,12 +73,12 @@ static void initialize_state(void) {
     }
 }
 
-void hpcsim_allocation_tracker_set_enabled(int enabled) {
+void n_body_sim_pro_allocation_tracker_set_enabled(int enabled) {
     initialize_state();
     atomic_store(&tracker_enabled, enabled ? 1 : 0);
 }
 
-int hpcsim_allocation_tracker_is_enabled(void) {
+int n_body_sim_pro_allocation_tracker_is_enabled(void) {
     return atomic_load(&tracker_enabled);
 }
 
@@ -94,7 +94,7 @@ static void flush_thread_buffer(void) {
     TrackerState* state = &tracker_state;
     tracker_lock();
     for (unsigned int i = 0; i < thread_event_count; ++i) {
-        const HpcsimAllocationEvent* event = &thread_events[i];
+        const NBodySimProAllocationEvent* event = &thread_events[i];
         if (event->is_allocation) {
             ++state->live_allocations;
             ++state->total_allocations;
@@ -128,8 +128,8 @@ static void flush_thread_buffer(void) {
             }
         }
         state->ring[state->ring_next] = *event;
-        state->ring_next = (state->ring_next + 1) % HPCSIM_ALLOCATION_TRACKER_EVENT_RING_SIZE;
-        if (state->ring_count < HPCSIM_ALLOCATION_TRACKER_EVENT_RING_SIZE) {
+        state->ring_next = (state->ring_next + 1) % N_BODY_SIM_PRO_ALLOCATION_TRACKER_EVENT_RING_SIZE;
+        if (state->ring_count < N_BODY_SIM_PRO_ALLOCATION_TRACKER_EVENT_RING_SIZE) {
             ++state->ring_count;
         }
     }
@@ -137,15 +137,15 @@ static void flush_thread_buffer(void) {
     thread_event_count = 0;
 }
 
-void hpcsim_allocation_tracker_record(HpcsimAllocationCategory category, size_t size,
+void n_body_sim_pro_allocation_tracker_record(NBodySimProAllocationCategory category, size_t size,
                                       int is_allocation) {
     if (!atomic_load(&tracker_enabled)) {
         return;
     }
-    if (thread_event_count >= HPCSIM_ALLOCATION_TRACKER_THREAD_BUFFER_SIZE) {
+    if (thread_event_count >= N_BODY_SIM_PRO_ALLOCATION_TRACKER_THREAD_BUFFER_SIZE) {
         flush_thread_buffer();
     }
-    HpcsimAllocationEvent* event = &thread_events[thread_event_count++];
+    NBodySimProAllocationEvent* event = &thread_events[thread_event_count++];
     event->sequence = atomic_fetch_add(&next_sequence, 1);
     event->size = size;
     event->category = category;
@@ -153,7 +153,7 @@ void hpcsim_allocation_tracker_record(HpcsimAllocationCategory category, size_t 
     event->is_allocation = is_allocation;
 }
 
-int hpcsim_allocation_tracker_poll(HpcsimAllocationSummary* summary) {
+int n_body_sim_pro_allocation_tracker_poll(NBodySimProAllocationSummary* summary) {
     if (summary == NULL) {
         return 1;
     }
@@ -191,7 +191,7 @@ int hpcsim_allocation_tracker_poll(HpcsimAllocationSummary* summary) {
     return 0;
 }
 
-size_t hpcsim_allocation_tracker_recent_events(HpcsimAllocationEvent* events,
+size_t n_body_sim_pro_allocation_tracker_recent_events(NBodySimProAllocationEvent* events,
                                                size_t count) {
     initialize_state();
     flush_thread_buffer();
@@ -200,16 +200,16 @@ size_t hpcsim_allocation_tracker_recent_events(HpcsimAllocationEvent* events,
         return 0;
     }
     const size_t available =
-        state->ring_count < HPCSIM_ALLOCATION_TRACKER_EVENT_RING_SIZE
+        state->ring_count < N_BODY_SIM_PRO_ALLOCATION_TRACKER_EVENT_RING_SIZE
             ? state->ring_count
-            : HPCSIM_ALLOCATION_TRACKER_EVENT_RING_SIZE;
+            : N_BODY_SIM_PRO_ALLOCATION_TRACKER_EVENT_RING_SIZE;
     const size_t to_write = available < count ? available : count;
-    const size_t first = (state->ring_next + HPCSIM_ALLOCATION_TRACKER_EVENT_RING_SIZE -
+    const size_t first = (state->ring_next + N_BODY_SIM_PRO_ALLOCATION_TRACKER_EVENT_RING_SIZE -
                           to_write) %
-                         HPCSIM_ALLOCATION_TRACKER_EVENT_RING_SIZE;
+                         N_BODY_SIM_PRO_ALLOCATION_TRACKER_EVENT_RING_SIZE;
     for (size_t i = 0; i < to_write; ++i) {
         events[i] =
-            state->ring[(first + i) % HPCSIM_ALLOCATION_TRACKER_EVENT_RING_SIZE];
+            state->ring[(first + i) % N_BODY_SIM_PRO_ALLOCATION_TRACKER_EVENT_RING_SIZE];
     }
     return to_write;
 }

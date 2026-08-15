@@ -1,10 +1,10 @@
-#include "hpcsim/threading/threading.h"
+#include "n_body_sim_pro/threading/threading.h"
 
 #ifdef _OPENMP
 #include <omp.h>
 #endif
 
-int hpcsim_threading_available_thread_count(void) {
+int n_body_sim_pro_threading_available_thread_count(void) {
 #ifdef _OPENMP
     return omp_get_max_threads();
 #else
@@ -12,7 +12,7 @@ int hpcsim_threading_available_thread_count(void) {
 #endif
 }
 
-void hpcsim_threading_set_thread_count(int thread_count) {
+void n_body_sim_pro_threading_set_thread_count(int thread_count) {
 #ifdef _OPENMP
     if (thread_count <= 0) {
         omp_set_num_threads(omp_get_max_threads());
@@ -24,7 +24,7 @@ void hpcsim_threading_set_thread_count(int thread_count) {
 #endif
 }
 
-int hpcsim_threading_thread_count(void) {
+int n_body_sim_pro_threading_thread_count(void) {
 #ifdef _OPENMP
     return omp_get_max_threads();
 #else
@@ -32,7 +32,7 @@ int hpcsim_threading_thread_count(void) {
 #endif
 }
 
-int hpcsim_threading_active_thread_count(void) {
+int n_body_sim_pro_threading_active_thread_count(void) {
 #ifdef _OPENMP
     return omp_get_num_threads();
 #else
@@ -40,7 +40,7 @@ int hpcsim_threading_active_thread_count(void) {
 #endif
 }
 
-int hpcsim_threading_openmp_available(void) {
+int n_body_sim_pro_threading_openmp_available(void) {
 #ifdef _OPENMP
     return 1;
 #else

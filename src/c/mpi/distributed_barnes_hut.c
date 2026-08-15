@@ -1,14 +1,14 @@
-#include "hpcsim/mpi/distributed_barnes_hut.h"
+#include "n_body_sim_pro/mpi/distributed_barnes_hut.h"
 
 #include "../barnes_hut/barnes_hut_internal.h"
-#include "hpcsim/memory/allocator.h"
+#include "n_body_sim_pro/memory/allocator.h"
 
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef HPCSIM_HAVE_MPI
+#ifdef N_BODY_SIM_PRO_HAVE_MPI
 #include <mpi.h>
 #endif
 
@@ -71,11 +71,11 @@ typedef struct RejectedParent {
     int32_t owner_node_index;
 } RejectedParent;
 
-struct HpcsimDistributedSimulation {
+struct NBodySimProDistributedSimulation {
     int rank;
     int comm_size;
     int mpi_available;
-    HpcsimBarnesHutTree* local_tree;
+    NBodySimProBarnesHutTree* local_tree;
     BarnesHutNode* remote_nodes;
     size_t remote_count;
     size_t remote_capacity;
@@ -93,18 +93,18 @@ struct HpcsimDistributedSimulation {
     double computation_time_seconds;
 };
 
-HpcsimDistributedSimulation* hpcsim_distributed_create(const HpcsimMpiRuntime* runtime,
-                                                       HpcsimError* error) {
+NBodySimProDistributedSimulation* n_body_sim_pro_distributed_create(const NBodySimProMpiRuntime* runtime,
+                                                       NBodySimProError* error) {
     if (runtime == NULL) {
-        hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
+        n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
                          "MPI runtime must not be null");
         return NULL;
     }
-    HpcsimDistributedSimulation* simulation = (HpcsimDistributedSimulation*)hpcsim_allocate(
-        sizeof(HpcsimDistributedSimulation), 64, HPCSIM_ALLOCATION_CATEGORY_THREAD_WORKSPACE,
+    NBodySimProDistributedSimulation* simulation = (NBodySimProDistributedSimulation*)n_body_sim_pro_allocate(
+        sizeof(NBodySimProDistributedSimulation), 64, N_BODY_SIM_PRO_ALLOCATION_CATEGORY_THREAD_WORKSPACE,
         __FILE__, __LINE__);
     if (simulation == NULL) {
-        hpcsim_error_set(error, HPCSIM_STATUS_OUT_OF_MEMORY, __FILE__, __LINE__,
+        n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_OUT_OF_MEMORY, __FILE__, __LINE__,
                          "failed to allocate distributed simulation");
         return NULL;
     }
@@ -113,34 +113,34 @@ HpcsimDistributedSimulation* hpcsim_distributed_create(const HpcsimMpiRuntime* r
     simulation->comm_size = runtime->comm_size;
     simulation->mpi_available = runtime->available;
     simulation->theta = 0.7;
-    simulation->local_tree = hpcsim_barnes_hut_tree_create(error);
+    simulation->local_tree = n_body_sim_pro_barnes_hut_tree_create(error);
     if (simulation->local_tree == NULL) {
-        hpcsim_deallocate(simulation, __FILE__, __LINE__);
+        n_body_sim_pro_deallocate(simulation, __FILE__, __LINE__);
         return NULL;
     }
     return simulation;
 }
 
-void hpcsim_distributed_destroy(HpcsimDistributedSimulation* simulation) {
+void n_body_sim_pro_distributed_destroy(NBodySimProDistributedSimulation* simulation) {
     if (simulation == NULL) {
         return;
     }
-    hpcsim_barnes_hut_tree_destroy(simulation->local_tree);
-    hpcsim_deallocate(simulation->remote_nodes, __FILE__, __LINE__);
-    hpcsim_deallocate(simulation->remote_root_indices, __FILE__, __LINE__);
-    hpcsim_deallocate(simulation->remote_root_cells, __FILE__, __LINE__);
-    hpcsim_deallocate(simulation->kept_cells, __FILE__, __LINE__);
-    hpcsim_deallocate(simulation, __FILE__, __LINE__);
+    n_body_sim_pro_barnes_hut_tree_destroy(simulation->local_tree);
+    n_body_sim_pro_deallocate(simulation->remote_nodes, __FILE__, __LINE__);
+    n_body_sim_pro_deallocate(simulation->remote_root_indices, __FILE__, __LINE__);
+    n_body_sim_pro_deallocate(simulation->remote_root_cells, __FILE__, __LINE__);
+    n_body_sim_pro_deallocate(simulation->kept_cells, __FILE__, __LINE__);
+    n_body_sim_pro_deallocate(simulation, __FILE__, __LINE__);
 }
 
-void hpcsim_distributed_set_theta(HpcsimDistributedSimulation* simulation, double theta) {
+void n_body_sim_pro_distributed_set_theta(NBodySimProDistributedSimulation* simulation, double theta) {
     if (simulation != NULL) {
         simulation->theta = theta;
-        hpcsim_barnes_hut_tree_set_theta(simulation->local_tree, theta);
+        n_body_sim_pro_barnes_hut_tree_set_theta(simulation->local_tree, theta);
     }
 }
 
-double hpcsim_distributed_theta(const HpcsimDistributedSimulation* simulation) {
+double n_body_sim_pro_distributed_theta(const NBodySimProDistributedSimulation* simulation) {
     return simulation == NULL ? 0.0 : simulation->theta;
 }
 
@@ -148,7 +148,7 @@ double hpcsim_distributed_theta(const HpcsimDistributedSimulation* simulation) {
 /* Local tree cell extraction                                          */
 /* ------------------------------------------------------------------ */
 
-static size_t extract_cells_at_level(const HpcsimBarnesHutTree* tree, int level,
+static size_t extract_cells_at_level(const NBodySimProBarnesHutTree* tree, int level,
                                      ExchangeCell* output) {
     typedef struct DfsEntry {
         int32_t node_index;
@@ -224,8 +224,8 @@ static size_t extract_cells_at_level(const HpcsimBarnesHutTree* tree, int level,
 
 /* Nearest-particle distance from a query point to any particle in the local
  * tree, computed with bounding-cell pruning. */
-static double nearest_particle_distance(const HpcsimBarnesHutTree* tree,
-                                        const HpcsimParticleSystemView* view,
+static double nearest_particle_distance(const NBodySimProBarnesHutTree* tree,
+                                        const NBodySimProParticleSystemView* view,
                                         double query_x, double query_y, double query_z) {
     typedef struct NnEntry {
         int32_t node_index;
@@ -301,8 +301,8 @@ static double nearest_particle_distance(const HpcsimBarnesHutTree* tree,
 /* 1 when some local particle would descend into this cell (needs finer).
  * The traversal's opening test measures distance to the cell's center of
  * mass, so the essential criterion uses the same distance. */
-static int cell_rejected(const HpcsimBarnesHutTree* tree,
-                         const HpcsimParticleSystemView* view, double theta,
+static int cell_rejected(const NBodySimProBarnesHutTree* tree,
+                         const NBodySimProParticleSystemView* view, double theta,
                          const ExchangeCell* cell) {
     const double minimum_distance_squared =
         nearest_particle_distance(tree, view, cell->com_x, cell->com_y, cell->com_z);
@@ -310,12 +310,12 @@ static int cell_rejected(const HpcsimBarnesHutTree* tree,
     return minimum_distance_squared <= cell_size_squared / (theta * theta);
 }
 
-static int append_kept_cell(HpcsimDistributedSimulation* simulation,
+static int append_kept_cell(NBodySimProDistributedSimulation* simulation,
                             const ExchangeCell* cell) {
     if (simulation->kept_count >= simulation->kept_capacity) {
         size_t new_capacity =
             simulation->kept_capacity == 0 ? 1024 : simulation->kept_capacity * 2;
-        KeptCell* grown = (KeptCell*)hpcsim_reallocate(
+        KeptCell* grown = (KeptCell*)n_body_sim_pro_reallocate(
             simulation->kept_cells, new_capacity * sizeof(KeptCell), __FILE__, __LINE__);
         if (grown == NULL) {
             return 0;
@@ -329,11 +329,11 @@ static int append_kept_cell(HpcsimDistributedSimulation* simulation,
     return 1;
 }
 
-static int exchange_essential_tree(HpcsimDistributedSimulation* simulation,
-                                   const HpcsimParticleSystemView* view) {
-#ifdef HPCSIM_HAVE_MPI
-    const HpcsimBarnesHutTree* tree = simulation->local_tree;
-    const double communication_start = hpcsim_mpi_wall_time();
+static int exchange_essential_tree(NBodySimProDistributedSimulation* simulation,
+                                   const NBodySimProParticleSystemView* view) {
+#ifdef N_BODY_SIM_PRO_HAVE_MPI
+    const NBodySimProBarnesHutTree* tree = simulation->local_tree;
+    const double communication_start = n_body_sim_pro_mpi_wall_time();
 
     simulation->essential_cells = 0;
     simulation->kept_count = 0;
@@ -359,7 +359,7 @@ static int exchange_essential_tree(HpcsimDistributedSimulation* simulation,
     }
     int rejected_count = 0;
 
-#define HPCSIM_DIST_APPEND_REJECTED(destination, capacity, count, rank_, node_index_) \
+#define N_BODY_SIM_PRO_DIST_APPEND_REJECTED(destination, capacity, count, rank_, node_index_) \
     do {                                                                             \
         if ((size_t)(count) >= (capacity)) {                                         \
             size_t new_capacity = (capacity) * 2;                                    \
@@ -396,7 +396,7 @@ static int exchange_essential_tree(HpcsimDistributedSimulation* simulation,
             return 0;
         }
         if (cell->is_internal && cell_rejected(tree, view, simulation->theta, cell)) {
-            HPCSIM_DIST_APPEND_REJECTED(rejected_parents, rejected_capacity, rejected_count, rank,
+            N_BODY_SIM_PRO_DIST_APPEND_REJECTED(rejected_parents, rejected_capacity, rejected_count, rank,
                                         cell->owner_node_index);
             any_rejected = 1;
         }
@@ -487,7 +487,7 @@ static int exchange_essential_tree(HpcsimDistributedSimulation* simulation,
                 return 0;
             }
             if (cell->is_internal && cell_rejected(tree, view, simulation->theta, cell)) {
-                HPCSIM_DIST_APPEND_REJECTED(next_rejected_parents, next_rejected_capacity, next_rejected_count,
+                N_BODY_SIM_PRO_DIST_APPEND_REJECTED(next_rejected_parents, next_rejected_capacity, next_rejected_count,
                                             cell->owner_rank, cell->owner_node_index);
                 local_any_rejected = 1;
             }
@@ -514,7 +514,7 @@ static int exchange_essential_tree(HpcsimDistributedSimulation* simulation,
         free(all_level_cells);
     }
 
-    simulation->communication_time_seconds = hpcsim_mpi_wall_time() - communication_start;
+    simulation->communication_time_seconds = n_body_sim_pro_mpi_wall_time() - communication_start;
     free(root_buffer);
     free(rejected_parents);
     free(next_rejected_parents);
@@ -530,7 +530,7 @@ static int exchange_essential_tree(HpcsimDistributedSimulation* simulation,
 /* Build the remote essential tree                                     */
 /* ------------------------------------------------------------------ */
 
-static int ensure_remote_capacity(HpcsimDistributedSimulation* simulation,
+static int ensure_remote_capacity(NBodySimProDistributedSimulation* simulation,
                                   size_t required) {
     if (required <= simulation->remote_capacity) {
         return 1;
@@ -542,7 +542,7 @@ static int ensure_remote_capacity(HpcsimDistributedSimulation* simulation,
         }
         new_capacity *= 2;
     }
-    BarnesHutNode* new_nodes = (BarnesHutNode*)hpcsim_reallocate(
+    BarnesHutNode* new_nodes = (BarnesHutNode*)n_body_sim_pro_reallocate(
         simulation->remote_nodes, new_capacity * sizeof(BarnesHutNode), __FILE__, __LINE__);
     if (new_nodes == NULL) {
         return 0;
@@ -553,7 +553,7 @@ static int ensure_remote_capacity(HpcsimDistributedSimulation* simulation,
 }
 
 /* Build the remote octree from the kept cells (parents precede children). */
-static int build_remote_tree(HpcsimDistributedSimulation* simulation) {
+static int build_remote_tree(NBodySimProDistributedSimulation* simulation) {
     simulation->remote_count = 0;
     simulation->remote_root_count = 0;
 
@@ -608,10 +608,10 @@ static int build_remote_tree(HpcsimDistributedSimulation* simulation) {
 /* Traversal over local + remote trees                                 */
 /* ------------------------------------------------------------------ */
 
-static void evaluate_particle_distributed(const HpcsimDistributedSimulation* simulation,
-                                          const HpcsimBarnesHutTree* tree,
-                                          const HpcsimParticleSystemView* view,
-                                          const HpcsimGravity* gravity, size_t query_particle,
+static void evaluate_particle_distributed(const NBodySimProDistributedSimulation* simulation,
+                                          const NBodySimProBarnesHutTree* tree,
+                                          const NBodySimProParticleSystemView* view,
+                                          const NBodySimProGravity* gravity, size_t query_particle,
                                           double* acceleration_x, double* acceleration_y,
                                           double* acceleration_z) {
     typedef struct WalkEntry {
@@ -803,51 +803,51 @@ static void evaluate_particle_distributed(const HpcsimDistributedSimulation* sim
 /* Public entry point                                                  */
 /* ------------------------------------------------------------------ */
 
-HpcsimStatus hpcsim_distributed_compute_acceleration(const HpcsimParticleSystemView* view,
-                                                     const HpcsimGravity* gravity,
-                                                     void* context, HpcsimError* error) {
-    HpcsimDistributedSimulation* simulation = (HpcsimDistributedSimulation*)context;
+NBodySimProStatus n_body_sim_pro_distributed_compute_acceleration(const NBodySimProParticleSystemView* view,
+                                                     const NBodySimProGravity* gravity,
+                                                     void* context, NBodySimProError* error) {
+    NBodySimProDistributedSimulation* simulation = (NBodySimProDistributedSimulation*)context;
     if (simulation == NULL || view == NULL || gravity == NULL) {
-        hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
+        n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
                          "simulation, view, and gravity must not be null");
-        return HPCSIM_STATUS_INVALID_ARGUMENT;
+        return N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT;
     }
 
-    const double computation_start = hpcsim_mpi_wall_time();
-    HpcsimStatus status =
-        hpcsim_barnes_hut_build_tree(simulation->local_tree, view, error);
-    if (status != HPCSIM_STATUS_OK) {
+    const double computation_start = n_body_sim_pro_mpi_wall_time();
+    NBodySimProStatus status =
+        n_body_sim_pro_barnes_hut_build_tree(simulation->local_tree, view, error);
+    if (status != N_BODY_SIM_PRO_STATUS_OK) {
         return status;
     }
-    const HpcsimParticleSystemView* local_view = &simulation->local_tree->reordered_view;
+    const NBodySimProParticleSystemView* local_view = &simulation->local_tree->reordered_view;
 
     if (simulation->mpi_available && simulation->comm_size > 1) {
         if (simulation->kept_cells == NULL) {
-            simulation->kept_cells = (KeptCell*)hpcsim_allocate(
+            simulation->kept_cells = (KeptCell*)n_body_sim_pro_allocate(
                 DISTRIBUTED_KEPT_CAPACITY * sizeof(KeptCell), 64,
-                HPCSIM_ALLOCATION_CATEGORY_THREAD_WORKSPACE, __FILE__, __LINE__);
-            simulation->remote_root_indices = (int32_t*)hpcsim_allocate(
+                N_BODY_SIM_PRO_ALLOCATION_CATEGORY_THREAD_WORKSPACE, __FILE__, __LINE__);
+            simulation->remote_root_indices = (int32_t*)n_body_sim_pro_allocate(
                 (size_t)simulation->comm_size * sizeof(int32_t), 64,
-                HPCSIM_ALLOCATION_CATEGORY_THREAD_WORKSPACE, __FILE__, __LINE__);
-            simulation->remote_root_cells = (ExchangeCell*)hpcsim_allocate(
+                N_BODY_SIM_PRO_ALLOCATION_CATEGORY_THREAD_WORKSPACE, __FILE__, __LINE__);
+            simulation->remote_root_cells = (ExchangeCell*)n_body_sim_pro_allocate(
                 (size_t)simulation->comm_size * sizeof(ExchangeCell), 64,
-                HPCSIM_ALLOCATION_CATEGORY_THREAD_WORKSPACE, __FILE__, __LINE__);
+                N_BODY_SIM_PRO_ALLOCATION_CATEGORY_THREAD_WORKSPACE, __FILE__, __LINE__);
         }
         if (simulation->kept_cells == NULL || simulation->remote_root_indices == NULL ||
             simulation->remote_root_cells == NULL) {
-            hpcsim_error_set(error, HPCSIM_STATUS_OUT_OF_MEMORY, __FILE__, __LINE__,
+            n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_OUT_OF_MEMORY, __FILE__, __LINE__,
                              "failed to allocate distributed exchange workspace");
-            return HPCSIM_STATUS_OUT_OF_MEMORY;
+            return N_BODY_SIM_PRO_STATUS_OUT_OF_MEMORY;
         }
         if (!exchange_essential_tree(simulation, local_view)) {
-            hpcsim_error_set(error, HPCSIM_STATUS_OUT_OF_MEMORY, __FILE__, __LINE__,
+            n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_OUT_OF_MEMORY, __FILE__, __LINE__,
                              "distributed essential tree exchange failed");
-            return HPCSIM_STATUS_OUT_OF_MEMORY;
+            return N_BODY_SIM_PRO_STATUS_OUT_OF_MEMORY;
         }
         if (!build_remote_tree(simulation)) {
-            hpcsim_error_set(error, HPCSIM_STATUS_OUT_OF_MEMORY, __FILE__, __LINE__,
+            n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_OUT_OF_MEMORY, __FILE__, __LINE__,
                              "failed to build remote essential tree");
-            return HPCSIM_STATUS_OUT_OF_MEMORY;
+            return N_BODY_SIM_PRO_STATUS_OUT_OF_MEMORY;
         }
     } else {
         simulation->remote_count = 0;
@@ -871,13 +871,13 @@ HpcsimStatus hpcsim_distributed_compute_acceleration(const HpcsimParticleSystemV
         local_view->accelerations_z[i] = acceleration_z;
     }
 
-    hpcsim_barnes_hut_scatter_accelerations(simulation->local_tree, view);
-    simulation->computation_time_seconds = hpcsim_mpi_wall_time() - computation_start;
-    return HPCSIM_STATUS_OK;
+    n_body_sim_pro_barnes_hut_scatter_accelerations(simulation->local_tree, view);
+    simulation->computation_time_seconds = n_body_sim_pro_mpi_wall_time() - computation_start;
+    return N_BODY_SIM_PRO_STATUS_OK;
 }
 
-int hpcsim_distributed_stats(const HpcsimDistributedSimulation* simulation,
-                             HpcsimDistributedStats* stats) {
+int n_body_sim_pro_distributed_stats(const NBodySimProDistributedSimulation* simulation,
+                             NBodySimProDistributedStats* stats) {
     if (simulation == NULL || stats == NULL) {
         return 1;
     }

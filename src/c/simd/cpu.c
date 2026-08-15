@@ -1,4 +1,4 @@
-#include "hpcsim/simd/cpu.h"
+#include "n_body_sim_pro/simd/cpu.h"
 
 #include <string.h>
 
@@ -6,7 +6,7 @@
 #include <cpuid.h>
 #endif
 
-static void detect_x86_features(HpcsimCpuFeatures* features) {
+static void detect_x86_features(NBodySimProCpuFeatures* features) {
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
     unsigned int maximum_function = __get_cpuid_max(0, NULL);
     if (maximum_function < 1) {
@@ -32,7 +32,7 @@ static void detect_x86_features(HpcsimCpuFeatures* features) {
 #endif
 }
 
-static void detect_arm_features(HpcsimCpuFeatures* features) {
+static void detect_arm_features(NBodySimProCpuFeatures* features) {
 #if defined(__aarch64__) || defined(_M_ARM64)
     features->has_neon = 1;
 #else
@@ -40,15 +40,15 @@ static void detect_arm_features(HpcsimCpuFeatures* features) {
 #endif
 }
 
-HpcsimCpuFeatures hpcsim_cpu_detect_features(void) {
-    HpcsimCpuFeatures features;
+NBodySimProCpuFeatures n_body_sim_pro_cpu_detect_features(void) {
+    NBodySimProCpuFeatures features;
     memset(&features, 0, sizeof(features));
     detect_x86_features(&features);
     detect_arm_features(&features);
     return features;
 }
 
-const char* hpcsim_cpu_brand_string(void) {
+const char* n_body_sim_pro_cpu_brand_string(void) {
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
     static char brand[49];
     unsigned int registers[4];

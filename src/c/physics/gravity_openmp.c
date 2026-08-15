@@ -1,4 +1,4 @@
-#include "hpcsim/physics/gravity.h"
+#include "n_body_sim_pro/physics/gravity.h"
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -21,20 +21,20 @@
  */
 
 #ifndef _OPENMP
-HpcsimStatus hpcsim_gravity_compute_acceleration_openmp(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
-    HpcsimError* error) {
-    return hpcsim_gravity_compute_acceleration_reference(view, gravity, context, error);
+NBodySimProStatus n_body_sim_pro_gravity_compute_acceleration_openmp(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error) {
+    return n_body_sim_pro_gravity_compute_acceleration_reference(view, gravity, context, error);
 }
 #else
-HpcsimStatus hpcsim_gravity_compute_acceleration_openmp(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
-    HpcsimError* error) {
+NBodySimProStatus n_body_sim_pro_gravity_compute_acceleration_openmp(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error) {
     (void)context;
     if (view == NULL || gravity == NULL) {
-        hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
+        n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
                          "view and gravity parameters must not be null");
-        return HPCSIM_STATUS_INVALID_ARGUMENT;
+        return N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT;
     }
 
     const size_t particle_count = view->particle_count;
@@ -82,6 +82,6 @@ HpcsimStatus hpcsim_gravity_compute_acceleration_openmp(
         accelerations_z[i] = acceleration_z;
     }
 
-    return HPCSIM_STATUS_OK;
+    return N_BODY_SIM_PRO_STATUS_OK;
 }
 #endif

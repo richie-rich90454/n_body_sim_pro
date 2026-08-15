@@ -1,14 +1,14 @@
-#include "hpcsim/diagnostics/numerics.h"
+#include "n_body_sim_pro/diagnostics/numerics.h"
 
 #include <math.h>
 
-HpcsimStatus hpcsim_diagnostics_compute_global(const HpcsimParticleSystemView* view,
-                                               HpcsimDiagnosticsQuantities* quantities,
-                                               HpcsimError* error) {
+NBodySimProStatus n_body_sim_pro_diagnostics_compute_global(const NBodySimProParticleSystemView* view,
+                                               NBodySimProDiagnosticsQuantities* quantities,
+                                               NBodySimProError* error) {
     if (view == NULL || quantities == NULL) {
-        hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
+        n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
                          "view and quantities must not be null");
-        return HPCSIM_STATUS_INVALID_ARGUMENT;
+        return N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT;
     }
 
     const size_t particle_count = view->particle_count;
@@ -77,16 +77,16 @@ HpcsimStatus hpcsim_diagnostics_compute_global(const HpcsimParticleSystemView* v
         quantities->center_of_mass_z = 0.0;
     }
 
-    return HPCSIM_STATUS_OK;
+    return N_BODY_SIM_PRO_STATUS_OK;
 }
 
-HpcsimStatus hpcsim_diagnostics_compute_potential_energy(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity,
-    double* potential_energy, HpcsimError* error) {
+NBodySimProStatus n_body_sim_pro_diagnostics_compute_potential_energy(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity,
+    double* potential_energy, NBodySimProError* error) {
     if (view == NULL || gravity == NULL || potential_energy == NULL) {
-        hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
+        n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
                          "view, gravity, and output must not be null");
-        return HPCSIM_STATUS_INVALID_ARGUMENT;
+        return N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT;
     }
 
     const size_t particle_count = view->particle_count;
@@ -112,5 +112,5 @@ HpcsimStatus hpcsim_diagnostics_compute_potential_energy(
     }
 
     *potential_energy = -gravitational_constant * sum;
-    return HPCSIM_STATUS_OK;
+    return N_BODY_SIM_PRO_STATUS_OK;
 }
