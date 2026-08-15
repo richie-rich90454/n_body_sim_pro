@@ -7,6 +7,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 namespace hpcsim {
@@ -16,7 +17,8 @@ namespace hpcsim {
  *
  * The controller owns the particle system, the gravity parameters, the
  * integrator, and the time state. It does not know about SDL, OpenGL, or
- * ImGui: the user interface and the renderer read state from it.
+ * ImGui: the user interface and the renderer read state from it. The system
+ * is re-initialized from a preset on demand.
  */
 
 class SimulationController final {
@@ -27,14 +29,18 @@ public:
     SimulationController(const SimulationController&) = delete;
     SimulationController& operator=(const SimulationController&) = delete;
 
-    /* Two equal masses on a circular orbit about their barycenter. */
-    void initialize_two_body();
+    /* (Re)initialize the simulation from a preset. */
+    void apply_preset(HpcsimSimulationPreset preset, std::size_t particle_count,
+                      std::uint64_t random_seed);
 
     /* Advance the system by one timestep using the configured integrator. */
     void step();
 
     ParticleSystem& particle_system() { return particles_; }
     const ParticleSystem& particle_system() const { return particles_; }
+
+    HpcsimSimulationPreset preset() const { return preset_; }
+    std::uint64_t random_seed() const { return random_seed_; }
 
     bool running = true;
     double simulation_time = 0.0;
@@ -49,18 +55,21 @@ public:
 
     const HpcsimGravity& gravity() const { return gravity_; }
 
-    /* Per-body trajectory trail for visualization. */
+    /* Per-body trajectory trail for the two-body preset. */
     const std::array<std::vector<rendering::Vec3>, 2>& trails() const { return trails_; }
     void clear_trails();
 
 private:
-    void record_trail_positions();
     void recompute_gravity_parameters();
+    void compute_initial_accelerations();
+    void record_trail_positions();
 
     ParticleSystem particles_;
     HpcsimGravity gravity_;
     double gravitational_constant_ = 1.0;
     double softening_length_ = 0.0;
+    HpcsimSimulationPreset preset_ = HPCSIM_PRESET_TWO_BODY;
+    std::uint64_t random_seed_ = 0;
     std::array<std::vector<rendering::Vec3>, 2> trails_;
     static constexpr std::size_t TRAIL_CAPACITY = 4096;
 };
