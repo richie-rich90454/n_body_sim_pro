@@ -24,11 +24,8 @@ public:
 
 private:
     void draw_simulation_panel(SimulationController& simulation);
-    void draw_performance_panel(float frame_duration_ms, float frame_rate);
-    void draw_camera_panel(rendering::Camera& camera);
 
     float steps_per_frame_ = 1.0f;
-    bool show_trails_ = true;
 };
 
 }  // namespace hpcsim::ui
