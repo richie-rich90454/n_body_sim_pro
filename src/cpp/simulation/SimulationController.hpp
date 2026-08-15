@@ -8,6 +8,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 namespace hpcsim {
@@ -49,6 +50,10 @@ public:
     /* Use the OpenMP-parallel force kernel when available. */
     bool use_parallel_forces = true;
 
+    /* Use the Barnes-Hut octree approximation instead of all-pairs. */
+    bool barnes_hut_enabled = false;
+    double barnes_hut_theta = 0.7;
+
     /* The SIMD backend detected at construction (AVX2 or scalar). */
     HpcsimSimdBackend simd_backend() const { return simd_backend_; }
 
@@ -61,6 +66,11 @@ public:
 
     const HpcsimGravity& gravity() const { return gravity_; }
 
+    /* Statistics from the most recent Barnes-Hut force evaluation. */
+    bool barnes_hut_stats(HpcsimBarnesHutStats* stats) const {
+        return hpcsim_barnes_hut_tree_stats(tree_.get(), stats) == 0;
+    }
+
     /* Per-body trajectory trail for the two-body preset. */
     const std::array<std::vector<rendering::Vec3>, 2>& trails() const { return trails_; }
     void clear_trails();
@@ -69,9 +79,13 @@ private:
     void recompute_gravity_parameters();
     void compute_initial_accelerations();
     void record_trail_positions();
+    HpcsimForceFunction select_force_function(void*& force_context) const;
+    HpcsimBarnesHutTree* barnes_hut_tree();
 
     ParticleSystem particles_;
     HpcsimGravity gravity_;
+    std::unique_ptr<HpcsimBarnesHutTree, void (*)(HpcsimBarnesHutTree*)> tree_{
+        nullptr, hpcsim_barnes_hut_tree_destroy};
     double gravitational_constant_ = 1.0;
     double softening_length_ = 0.0;
     HpcsimSimulationPreset preset_ = HPCSIM_PRESET_TWO_BODY;
