@@ -1,5 +1,7 @@
 #include "application/Application.hpp"
 
+#include "logging/Logger.hpp"
+
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
 #include <imgui_impl_sdl3.h>
@@ -66,6 +68,13 @@ int Application::run() {
 }
 
 bool Application::initialize_sdl() {
+#ifdef HPCSIM_DEVELOPER_MODE
+    hpcsim_allocation_tracker_set_enabled(1);
+    HPCSIM_LOG(logging::Level::Info, logging::Category::Memory,
+               "Allocation tracking enabled (developer mode)");
+#endif
+    HPCSIM_LOG(logging::Level::Info, logging::Category::Application,
+               "Initializing SDL3 video subsystem");
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         std::fprintf(stderr, "HPCSim: SDL_Init failed: %s\n", SDL_GetError());
         return false;
