@@ -13,6 +13,15 @@
 
 namespace hpcsim {
 
+/* Conservation quantities refreshed from the particle state each step. */
+struct NumericalDiagnostics {
+    double kinetic_energy = 0.0;
+    double momentum_error = 0.0;
+    double center_of_mass_offset = 0.0;
+    double energy_drift = 0.0;
+    bool energy_available = false;
+};
+
 /*
  * Drives the C physics engine and owns the state the renderer visualizes.
  *
@@ -71,6 +80,14 @@ public:
         return hpcsim_barnes_hut_tree_stats(tree_.get(), stats) == 0;
     }
 
+    /* Timing of the most recent step, in milliseconds. */
+    double last_step_ms() const { return last_step_ms_; }
+    double last_tree_build_ms() const { return last_tree_build_ms_; }
+    double last_force_evaluation_ms() const { return last_force_evaluation_ms_; }
+
+    /* Conservation diagnostics refreshed each step. */
+    const NumericalDiagnostics& numerical_diagnostics() const { return diagnostics_; }
+
     /* Per-body trajectory trail for the two-body preset. */
     const std::array<std::vector<rendering::Vec3>, 2>& trails() const { return trails_; }
     void clear_trails();
@@ -79,6 +96,8 @@ private:
     void recompute_gravity_parameters();
     void compute_initial_accelerations();
     void record_trail_positions();
+    void refresh_numerical_diagnostics();
+    void reset_diagnostics_reference();
     HpcsimForceFunction select_force_function(void*& force_context) const;
     HpcsimBarnesHutTree* barnes_hut_tree();
 
@@ -93,6 +112,18 @@ private:
     std::uint64_t random_seed_ = 0;
     std::array<std::vector<rendering::Vec3>, 2> trails_;
     static constexpr std::size_t TRAIL_CAPACITY = 4096;
+
+    double last_step_ms_ = 0.0;
+    double last_tree_build_ms_ = 0.0;
+    double last_force_evaluation_ms_ = 0.0;
+    NumericalDiagnostics diagnostics_;
+    HpcsimVector3 initial_momentum_{0.0, 0.0, 0.0};
+    HpcsimVector3 initial_center_of_mass_{0.0, 0.0, 0.0};
+    double initial_total_energy_ = 0.0;
+    double momentum_scale_ = 1.0;
+    int energy_tracking_steps_ = 0;
+    static constexpr int ENERGY_TRACK_INTERVAL = 60;
+    static constexpr std::size_t ENERGY_TRACK_MAX_PARTICLES = 20000;
 };
 
 }  // namespace hpcsim
