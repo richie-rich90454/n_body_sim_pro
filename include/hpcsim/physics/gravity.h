@@ -57,6 +57,24 @@ HpcsimStatus hpcsim_gravity_compute_acceleration_reference(
 HpcsimStatus hpcsim_gravity_compute_acceleration_openmp(
     const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, HpcsimError* error);
 
+/*
+ * AVX2 SIMD all-pairs kernels.
+ *
+ * The inner force loop is vectorized across source particles with 256-bit
+ * FMA. Accumulation order differs from the reference, so results agree with
+ * it within floating-point tolerance rather than bit-for-bit. The
+ * `_openmp_avx2` variant additionally distributes the outer loop across
+ * OpenMP threads.
+ *
+ * On CPUs without AVX2+FMA these functions degrade to the reference kernel,
+ * so their symbols always exist.
+ */
+HpcsimStatus hpcsim_gravity_compute_acceleration_avx2(
+    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, HpcsimError* error);
+
+HpcsimStatus hpcsim_gravity_compute_acceleration_openmp_avx2(
+    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, HpcsimError* error);
+
 #ifdef __cplusplus
 }
 #endif
