@@ -1,5 +1,12 @@
 import { defineConfig } from 'vitepress'
-import markdownItKatex from 'markdown-it-katex'
+import { katex } from '@mdit/plugin-katex'
+
+/*
+ * GitHub Pages serves project sites under /<repo>/; asset URLs resolve from
+ * the base path. The workflow sets VITEPRESS_BASE to the deployment path;
+ * local dev/build use '/' by default.
+ */
+const base = process.env.VITEPRESS_BASE ?? '/'
 
 export default defineConfig({
   title: 'N-Body Sim Pro',
@@ -7,35 +14,26 @@ export default defineConfig({
   lang: 'en-US',
   cleanUrls: true,
   lastUpdated: true,
+  base,
 
   /*
-   * GitHub Pages serves project sites under /<repo>/; asset URLs resolve
-   * from the base path, so the default '/' makes every hashed file 404. The
-   * workflow sets VITEPRESS_BASE to the deployment path; local dev/build
-   * use '/' by default.
+   * Font cleanup (stripping VitePress's unused Inter @font-face rules,
+   * assets, and preload links so only Noto Sans / Noto Sans Mono remain)
+   * runs in scripts/postbuild.mjs, after the build has written everything.
    */
-  base: process.env.VITEPRESS_BASE ?? '/',
-
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          mermaid: ['mermaid'],
-        },
-      },
-    },
-  },
 
   head: [
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
-    ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans:wght@400;500;600;700&display=swap' }],
-    ['link', { rel: 'stylesheet', href: 'https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css' }],
+    ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Mono:wght@400;500;600;700&display=swap' }],
+    ['link', { rel: 'icon', href: `${base}favicon.ico`, sizes: '32x32' }],
+    ['link', { rel: 'icon', href: `${base}favicon.svg`, type: 'image/svg+xml' }],
+    ['link', { rel: 'apple-touch-icon', href: `${base}apple-touch-icon.png` }],
   ],
 
   markdown: {
     config(md) {
-      md.use(markdownItKatex)
+      md.use(katex)
       const fence = md.renderer.rules.fence.bind(md.renderer.rules.fence)
       md.renderer.rules.fence = (tokens, idx, options, env, self) => {
         const token = tokens[idx]
@@ -49,31 +47,40 @@ export default defineConfig({
   },
 
   themeConfig: {
-    logo: null,
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Getting Started', link: '/getting-started' },
-      { text: 'Architecture', link: '/architecture' },
-      { text: 'Physics', link: '/physics' },
-      { text: 'Performance', link: '/performance' },
+      {
+        text: 'Architecture',
+        items: [
+          { text: 'Architecture Overview', link: '/architecture' },
+          { text: 'Physics & Integrators', link: '/physics' },
+        ],
+      },
+      {
+        text: 'Performance',
+        items: [
+          { text: 'Performance Overview', link: '/performance' },
+          { text: 'OpenMP & Threading', link: '/threading' },
+          { text: 'SIMD', link: '/simd' },
+          { text: 'NUMA-aware Placement', link: '/numa' },
+          { text: 'Distributed (MPI)', link: '/distributed' },
+        ],
+      },
       { text: 'Instrumentation', link: '/instrumentation' },
-      { text: 'SIMD', link: '/simd' },
-      { text: 'NUMA', link: '/numa' },
-      { text: 'Distributed (MPI)', link: '/distributed' },
       { text: 'CLI Reference', link: '/cli' },
     ],
     sidebar: {
       '/': [
         {
-          text: 'Documentation',
+          text: 'Start',
           items: [
             { text: 'Overview', link: '/' },
             { text: 'Getting Started', link: '/getting-started' },
-            { text: 'Command Line Reference', link: '/cli' },
           ],
         },
         {
-          text: 'Architecture',
+          text: 'Architecture & Physics',
           items: [
             { text: 'Architecture', link: '/architecture' },
             { text: 'Physics & Integrators', link: '/physics' },
@@ -82,17 +89,18 @@ export default defineConfig({
         {
           text: 'Performance & Parallelism',
           items: [
-            { text: 'Performance', link: '/performance' },
+            { text: 'Performance Overview', link: '/performance' },
             { text: 'OpenMP & Threading', link: '/threading' },
             { text: 'SIMD', link: '/simd' },
-            { text: 'NUMA-aware placement', link: '/numa' },
+            { text: 'NUMA-aware Placement', link: '/numa' },
             { text: 'Distributed (MPI)', link: '/distributed' },
           ],
         },
         {
-          text: 'Instrumentation',
+          text: 'Reference',
           items: [
             { text: 'Instrumentation', link: '/instrumentation' },
+            { text: 'CLI Reference', link: '/cli' },
           ],
         },
       ],
