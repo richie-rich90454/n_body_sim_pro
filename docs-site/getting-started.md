@@ -1,3 +1,8 @@
+---
+title: Getting Started
+description: Prerequisites, building every configuration, running the test suite, and launching the interactive application and headless tools.
+---
+
 # Getting Started
 
 This guide walks through prerequisites, building every configuration, and
@@ -15,7 +20,7 @@ MSVC is secondary support.
 |-----------|---------|-------|
 | CMake | 3.28 | presets require it |
 | Ninja | any | recommended generator |
-| C compiler | C17 | GCC 鈮?13 or Clang 鈮?16 recommended |
+| C compiler | C17 | GCC ≥ 13 or Clang ≥ 16 recommended |
 | C++ compiler | C++20 | matching the C compiler |
 | OpenMP | supported | threaded kernels; degrades to serial if absent |
 
@@ -143,8 +148,8 @@ ctest --test-dir build/release --output-on-failure
 
 The suite covers allocator and particle-system units, gravity and
 diagnostics numerics, preset determinism, the two-body regression, checkpoint
-round-trips, OpenMP/SIMD/Barnes-Hut equivalence, NUMA behavior, and 鈥?when
-MPI is present 鈥?a 2-rank distributed equivalence test launched through
+round-trips, OpenMP/SIMD/Barnes-Hut equivalence, NUMA behavior, and —when
+MPI is present —a 2-rank distributed equivalence test launched through
 `mpiexec`.
 
 ## Launching the interactive application
@@ -153,7 +158,7 @@ MPI is present 鈥?a 2-rank distributed equivalence test launched through
 ./build/release/bin/n_body_sim_pro
 ```
 
-Expect a window titled **N-Body Sim Pro 鈥?CPU N-Body Simulation Engine** on a
+Expect a window titled **N-Body Sim Pro - CPU N-Body Simulation Engine** on a
 near-black background. The default scene is a **two-body orbit** with motion
 trails. Camera controls:
 
@@ -171,7 +176,7 @@ measured timings; **Memory** shows live allocations by category; the
 
 ::: warning
 With **All-pairs** selected, particle counts above ~64k run slowly by design
-(O(N虏)). Select **Barnes-Hut** for large systems.
+(O(N²)). Select **Barnes-Hut** for large systems.
 :::
 
 ## Running headless
@@ -180,8 +185,11 @@ With **All-pairs** selected, particle counts above ~64k run slowly by design
 # Hardware report (CPU / SIMD / OpenMP / NUMA)
 ./build/release/bin/n_body_sim_pro hardware
 
-# Force-kernel benchmark, machine-readable JSON as the last line
-./build/release/bin/n_body_sim_pro benchmark --particles 16384 --steps 3 \
+# Whole-step benchmark, machine-readable JSON as the last line
+./build/release/bin/n_body_sim_pro benchmark --particles 16384 --steps 3
+
+# Force-kernel microbenchmark across thread counts, CSV as the last line
+./build/release/bin/n_body_sim_pro_benchmark --particles 16384 --steps 3 \
   --algorithm openmp_avx2 --threads 1,2,4,8,16
 
 # Save a preset as a checkpoint, then resume it
