@@ -120,6 +120,24 @@ void UserInterface::draw_simulation_panel(SimulationController& simulation) {
     if (ImGui::SliderFloat("G", &gravitational_constant, 0.1f, 10.0f, "%.2f")) {
         simulation.set_gravitational_constant(gravitational_constant);
     }
+
+    ImGui::Separator();
+
+    ImGui::Checkbox("Parallel forces (OpenMP)", &simulation.use_parallel_forces);
+    if (hpcsim_threading_openmp_available()) {
+        static int thread_count_index = 0;
+        const int available_threads = hpcsim_threading_available_thread_count();
+        const char* thread_labels[] = {"Auto", "1", "2", "4", "8", "16", "32", "64"};
+        const int thread_values[] = {0, 1, 2, 4, 8, 16, 32, 64};
+        if (ImGui::Combo("OpenMP threads", &thread_count_index, thread_labels,
+                         static_cast<int>(std::size(thread_labels)))) {
+            hpcsim_threading_set_thread_count(thread_values[thread_count_index]);
+        }
+        ImGui::Text("Available threads : %d", available_threads);
+        ImGui::Text("Active threads    : %d", hpcsim_threading_active_thread_count());
+    } else {
+        ImGui::TextDisabled("OpenMP not available in this build");
+    }
 }
 
 }  // namespace hpcsim::ui
