@@ -13,6 +13,7 @@ add_library(${HPCSIM_C_LIBRARY} STATIC
     generation/random.c
     generation/presets.c
     barnes_hut/barnes_hut.c
+    checkpoint/checkpoint.c
     simd/cpu.c
     simd/backend.c
     simd/force_avx2.c
