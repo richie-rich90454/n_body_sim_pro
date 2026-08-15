@@ -111,9 +111,10 @@ void UserInterface::draw_simulation_panel(SimulationController& simulation) {
 
     static int algorithm_index = 0;
     const char* algorithm_names[] = {"All-pairs (OpenMP)", "All-pairs (single thread)",
-                                     "Barnes-Hut"};
-    if (ImGui::Combo("Algorithm", &algorithm_index, algorithm_names, 3)) {
-        simulation.barnes_hut_enabled = algorithm_index == 2;
+                                     "Barnes-Hut", "Barnes-Hut (SIMD, experimental)"};
+    if (ImGui::Combo("Algorithm", &algorithm_index, algorithm_names, 4)) {
+        simulation.barnes_hut_enabled = algorithm_index >= 2;
+        simulation.use_simd_barnes_hut = algorithm_index == 3;
         simulation.use_parallel_forces = algorithm_index != 1;
     }
     if (simulation.barnes_hut_enabled) {
