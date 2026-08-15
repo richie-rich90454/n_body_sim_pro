@@ -38,6 +38,7 @@ target_link_libraries(dear_imgui PUBLIC
 # N-Body Sim Pro C++ application layer.
 # ---------------------------------------------------------------------------
 add_library(${N_BODY_SIM_PRO_CPP_LIBRARY} STATIC
+    application/AppIcon.cpp
     application/Application.cpp
     benchmark/HeadlessRunner.cpp
     logging/Logger.cpp
