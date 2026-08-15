@@ -59,6 +59,9 @@ public:
     /* Use the OpenMP-parallel force kernel when available. */
     bool use_parallel_forces = true;
 
+    /* Use NUMA-aware parallel first-touch generation for large systems. */
+    bool use_parallel_generation = false;
+
     /* Use the Barnes-Hut octree approximation instead of all-pairs. */
     bool barnes_hut_enabled = false;
     double barnes_hut_theta = 0.7;
