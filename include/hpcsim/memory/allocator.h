@@ -50,6 +50,15 @@ void* hpcsim_allocate(size_t size, size_t alignment,
 void hpcsim_deallocate(void* pointer, const char* source_file, int source_line);
 
 /*
+ * Resize a pointer previously returned by hpcsim_allocate. The new size must
+ * be non-zero; on success the returned pointer owns the data and the old
+ * pointer must not be used. Returns NULL and leaves `pointer` valid on
+ * failure. Alignment is preserved from the original allocation.
+ */
+void* hpcsim_reallocate(void* pointer, size_t new_size, const char* source_file,
+                        int source_line);
+
+/*
  * Retrieve metadata for a live allocation.
  *
  * Returns 0 when `pointer` is a valid hpcsim allocation, in which case the
