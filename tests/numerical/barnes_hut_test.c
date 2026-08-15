@@ -1,6 +1,6 @@
-#include "hpcsim/barnes_hut/barnes_hut.h"
-#include "hpcsim/generation/presets.h"
-#include "hpcsim/physics/gravity.h"
+#include "n_body_sim_pro/barnes_hut/barnes_hut.h"
+#include "n_body_sim_pro/generation/presets.h"
+#include "n_body_sim_pro/physics/gravity.h"
 #include "test_harness.h"
 
 #include <math.h>
@@ -21,21 +21,21 @@
 
 enum { TEST_PARTICLE_COUNT = 400 };
 
-static HpcsimParticleSystem* make_system(HpcsimSimulationPreset preset,
+static NBodySimProParticleSystem* make_system(NBodySimProSimulationPreset preset,
                                          size_t particle_count, uint64_t seed) {
-    HpcsimParticleSystem* particle_system =
-        hpcsim_particle_system_create(particle_count);
+    NBodySimProParticleSystem* particle_system =
+        n_body_sim_pro_particle_system_create(particle_count);
     if (particle_system == NULL) {
         return NULL;
     }
-    HpcsimError error;
-    hpcsim_error_clear(&error);
-    HpcsimPresetParameters parameters = {particle_count, seed};
-    hpcsim_preset_generate(particle_system, preset, &parameters, &error);
+    NBodySimProError error;
+    n_body_sim_pro_error_clear(&error);
+    NBodySimProPresetParameters parameters = {particle_count, seed};
+    n_body_sim_pro_preset_generate(particle_system, preset, &parameters, &error);
     return particle_system;
 }
 
-static double root_mean_square_relative_error(HpcsimParticleSystemView* view,
+static double root_mean_square_relative_error(NBodySimProParticleSystemView* view,
                                               const double reference[3 * TEST_PARTICLE_COUNT],
                                               size_t particle_count) {
     double sum_error_squared = 0.0;
@@ -57,147 +57,147 @@ static double root_mean_square_relative_error(HpcsimParticleSystemView* view,
 }
 
 static void test_two_body_barnes_hut_is_exact(void) {
-    HpcsimParticleSystem* particle_system = make_system(HPCSIM_PRESET_TWO_BODY, 2, 1);
-    HPCSIM_ASSERT(particle_system != NULL);
+    NBodySimProParticleSystem* particle_system = make_system(N_BODY_SIM_PRO_PRESET_TWO_BODY, 2, 1);
+    N_BODY_SIM_PRO_ASSERT(particle_system != NULL);
     if (particle_system == NULL) {
         return;
     }
-    HpcsimError error;
-    hpcsim_error_clear(&error);
-    HpcsimParticleSystemView view;
-    hpcsim_particle_system_view(particle_system, &view, &error);
+    NBodySimProError error;
+    n_body_sim_pro_error_clear(&error);
+    NBodySimProParticleSystemView view;
+    n_body_sim_pro_particle_system_view(particle_system, &view, &error);
 
-    HpcsimGravity gravity;
-    hpcsim_gravity_init(&gravity, 1.0, 0.02);
+    NBodySimProGravity gravity;
+    n_body_sim_pro_gravity_init(&gravity, 1.0, 0.02);
 
     double reference[3 * TEST_PARTICLE_COUNT];
-    hpcsim_gravity_compute_acceleration_reference(&view, &gravity, NULL, &error);
+    n_body_sim_pro_gravity_compute_acceleration_reference(&view, &gravity, NULL, &error);
     for (size_t i = 0; i < view.particle_count; ++i) {
         reference[3 * i + 0] = view.accelerations_x[i];
         reference[3 * i + 1] = view.accelerations_y[i];
         reference[3 * i + 2] = view.accelerations_z[i];
     }
 
-    HpcsimBarnesHutTree* tree = hpcsim_barnes_hut_tree_create(&error);
-    HPCSIM_ASSERT(tree != NULL);
+    NBodySimProBarnesHutTree* tree = n_body_sim_pro_barnes_hut_tree_create(&error);
+    N_BODY_SIM_PRO_ASSERT(tree != NULL);
     if (tree == NULL) {
-        hpcsim_particle_system_destroy(particle_system);
+        n_body_sim_pro_particle_system_destroy(particle_system);
         return;
     }
-    hpcsim_barnes_hut_tree_set_theta(tree, 0.7);
-    HPCSIM_ASSERT(hpcsim_barnes_hut_compute_acceleration(&view, &gravity, tree, &error) ==
-                  HPCSIM_STATUS_OK);
+    n_body_sim_pro_barnes_hut_tree_set_theta(tree, 0.7);
+    N_BODY_SIM_PRO_ASSERT(n_body_sim_pro_barnes_hut_compute_acceleration(&view, &gravity, tree, &error) ==
+                  N_BODY_SIM_PRO_STATUS_OK);
 
     const double relative_error = root_mean_square_relative_error(&view, reference,
                                                                    view.particle_count);
-    HPCSIM_ASSERT(relative_error < 1.0e-15);
+    N_BODY_SIM_PRO_ASSERT(relative_error < 1.0e-15);
 
-    HpcsimBarnesHutStats stats;
-    hpcsim_barnes_hut_tree_stats(tree, &stats);
-    HPCSIM_ASSERT_EQ_SIZE(stats.leaf_count, 2);
-    HPCSIM_ASSERT(stats.accepted_approximations == 0);
-    HPCSIM_ASSERT(stats.exact_interactions == 2);
+    NBodySimProBarnesHutStats stats;
+    n_body_sim_pro_barnes_hut_tree_stats(tree, &stats);
+    N_BODY_SIM_PRO_ASSERT_EQ_SIZE(stats.leaf_count, 2);
+    N_BODY_SIM_PRO_ASSERT(stats.accepted_approximations == 0);
+    N_BODY_SIM_PRO_ASSERT(stats.exact_interactions == 2);
 
-    hpcsim_barnes_hut_tree_destroy(tree);
-    hpcsim_particle_system_destroy(particle_system);
+    n_body_sim_pro_barnes_hut_tree_destroy(tree);
+    n_body_sim_pro_particle_system_destroy(particle_system);
 }
 
 static void test_theta_tradeoff_and_accuracy(void) {
-    HpcsimParticleSystem* particle_system = make_system(HPCSIM_PRESET_RANDOM_CLOUD, TEST_PARTICLE_COUNT, 7);
-    HPCSIM_ASSERT(particle_system != NULL);
+    NBodySimProParticleSystem* particle_system = make_system(N_BODY_SIM_PRO_PRESET_RANDOM_CLOUD, TEST_PARTICLE_COUNT, 7);
+    N_BODY_SIM_PRO_ASSERT(particle_system != NULL);
     if (particle_system == NULL) {
         return;
     }
-    HpcsimError error;
-    hpcsim_error_clear(&error);
-    HpcsimParticleSystemView view;
-    hpcsim_particle_system_view(particle_system, &view, &error);
+    NBodySimProError error;
+    n_body_sim_pro_error_clear(&error);
+    NBodySimProParticleSystemView view;
+    n_body_sim_pro_particle_system_view(particle_system, &view, &error);
 
-    HpcsimGravity gravity;
-    hpcsim_gravity_init(&gravity, 1.0, 0.02);
+    NBodySimProGravity gravity;
+    n_body_sim_pro_gravity_init(&gravity, 1.0, 0.02);
 
     double reference[3 * TEST_PARTICLE_COUNT];
-    hpcsim_gravity_compute_acceleration_reference(&view, &gravity, NULL, &error);
+    n_body_sim_pro_gravity_compute_acceleration_reference(&view, &gravity, NULL, &error);
     for (size_t i = 0; i < view.particle_count; ++i) {
         reference[3 * i + 0] = view.accelerations_x[i];
         reference[3 * i + 1] = view.accelerations_y[i];
         reference[3 * i + 2] = view.accelerations_z[i];
     }
 
-    HpcsimBarnesHutTree* tree = hpcsim_barnes_hut_tree_create(&error);
-    HPCSIM_ASSERT(tree != NULL);
+    NBodySimProBarnesHutTree* tree = n_body_sim_pro_barnes_hut_tree_create(&error);
+    N_BODY_SIM_PRO_ASSERT(tree != NULL);
     if (tree == NULL) {
-        hpcsim_particle_system_destroy(particle_system);
+        n_body_sim_pro_particle_system_destroy(particle_system);
         return;
     }
 
-    hpcsim_barnes_hut_tree_set_theta(tree, 0.3);
-    hpcsim_barnes_hut_compute_acceleration(&view, &gravity, tree, &error);
+    n_body_sim_pro_barnes_hut_tree_set_theta(tree, 0.3);
+    n_body_sim_pro_barnes_hut_compute_acceleration(&view, &gravity, tree, &error);
     const double accurate_error = root_mean_square_relative_error(&view, reference,
                                                                    view.particle_count);
-    HpcsimBarnesHutStats accurate_stats;
-    hpcsim_barnes_hut_tree_stats(tree, &accurate_stats);
+    NBodySimProBarnesHutStats accurate_stats;
+    n_body_sim_pro_barnes_hut_tree_stats(tree, &accurate_stats);
     const size_t accurate_work =
         accurate_stats.accepted_approximations + accurate_stats.exact_interactions;
 
-    hpcsim_barnes_hut_tree_set_theta(tree, 1.2);
-    hpcsim_barnes_hut_compute_acceleration(&view, &gravity, tree, &error);
+    n_body_sim_pro_barnes_hut_tree_set_theta(tree, 1.2);
+    n_body_sim_pro_barnes_hut_compute_acceleration(&view, &gravity, tree, &error);
     const double coarse_error = root_mean_square_relative_error(&view, reference,
                                                                 view.particle_count);
-    HpcsimBarnesHutStats coarse_stats;
-    hpcsim_barnes_hut_tree_stats(tree, &coarse_stats);
+    NBodySimProBarnesHutStats coarse_stats;
+    n_body_sim_pro_barnes_hut_tree_stats(tree, &coarse_stats);
     const size_t coarse_work =
         coarse_stats.accepted_approximations + coarse_stats.exact_interactions;
 
     /* The trade-off is measurable: smaller theta is more accurate but does
      * more total work (exact interactions plus finer approximations). */
-    HPCSIM_ASSERT(accurate_error < 0.01);
-    HPCSIM_ASSERT(accurate_error < coarse_error);
-    HPCSIM_ASSERT(accurate_work > coarse_work);
+    N_BODY_SIM_PRO_ASSERT(accurate_error < 0.01);
+    N_BODY_SIM_PRO_ASSERT(accurate_error < coarse_error);
+    N_BODY_SIM_PRO_ASSERT(accurate_work > coarse_work);
 
-    hpcsim_barnes_hut_tree_destroy(tree);
-    hpcsim_particle_system_destroy(particle_system);
+    n_body_sim_pro_barnes_hut_tree_destroy(tree);
+    n_body_sim_pro_particle_system_destroy(particle_system);
 }
 
 static void test_tree_structure_and_determinism(void) {
-    HpcsimParticleSystem* particle_system = make_system(HPCSIM_PRESET_SPIRAL_GALAXY, TEST_PARTICLE_COUNT, 99);
-    HPCSIM_ASSERT(particle_system != NULL);
+    NBodySimProParticleSystem* particle_system = make_system(N_BODY_SIM_PRO_PRESET_SPIRAL_GALAXY, TEST_PARTICLE_COUNT, 99);
+    N_BODY_SIM_PRO_ASSERT(particle_system != NULL);
     if (particle_system == NULL) {
         return;
     }
-    HpcsimError error;
-    hpcsim_error_clear(&error);
-    HpcsimParticleSystemView view;
-    hpcsim_particle_system_view(particle_system, &view, &error);
+    NBodySimProError error;
+    n_body_sim_pro_error_clear(&error);
+    NBodySimProParticleSystemView view;
+    n_body_sim_pro_particle_system_view(particle_system, &view, &error);
 
-    HpcsimGravity gravity;
-    hpcsim_gravity_init(&gravity, 1.0, 0.05);
+    NBodySimProGravity gravity;
+    n_body_sim_pro_gravity_init(&gravity, 1.0, 0.05);
 
-    HpcsimBarnesHutTree* tree = hpcsim_barnes_hut_tree_create(&error);
-    HPCSIM_ASSERT(tree != NULL);
+    NBodySimProBarnesHutTree* tree = n_body_sim_pro_barnes_hut_tree_create(&error);
+    N_BODY_SIM_PRO_ASSERT(tree != NULL);
     if (tree == NULL) {
-        hpcsim_particle_system_destroy(particle_system);
+        n_body_sim_pro_particle_system_destroy(particle_system);
         return;
     }
-    hpcsim_barnes_hut_tree_set_theta(tree, 0.7);
+    n_body_sim_pro_barnes_hut_tree_set_theta(tree, 0.7);
 
-    hpcsim_barnes_hut_compute_acceleration(&view, &gravity, tree, &error);
+    n_body_sim_pro_barnes_hut_compute_acceleration(&view, &gravity, tree, &error);
     double first_run[3 * TEST_PARTICLE_COUNT];
     for (size_t i = 0; i < view.particle_count; ++i) {
         first_run[3 * i + 0] = view.accelerations_x[i];
         first_run[3 * i + 1] = view.accelerations_y[i];
         first_run[3 * i + 2] = view.accelerations_z[i];
     }
-    HpcsimBarnesHutStats stats;
-    hpcsim_barnes_hut_tree_stats(tree, &stats);
+    NBodySimProBarnesHutStats stats;
+    n_body_sim_pro_barnes_hut_tree_stats(tree, &stats);
 
-    HPCSIM_ASSERT_EQ_SIZE(stats.leaf_count, TEST_PARTICLE_COUNT);
-    HPCSIM_ASSERT(stats.node_count <= 2 * TEST_PARTICLE_COUNT);
-    HPCSIM_ASSERT(stats.internal_node_count > 0);
-    HPCSIM_ASSERT(stats.maximum_depth >= 2);
+    N_BODY_SIM_PRO_ASSERT_EQ_SIZE(stats.leaf_count, TEST_PARTICLE_COUNT);
+    N_BODY_SIM_PRO_ASSERT(stats.node_count <= 2 * TEST_PARTICLE_COUNT);
+    N_BODY_SIM_PRO_ASSERT(stats.internal_node_count > 0);
+    N_BODY_SIM_PRO_ASSERT(stats.maximum_depth >= 2);
 
     /* A second evaluation must reproduce the same accelerations exactly. */
-    hpcsim_barnes_hut_compute_acceleration(&view, &gravity, tree, &error);
+    n_body_sim_pro_barnes_hut_compute_acceleration(&view, &gravity, tree, &error);
     int identical = 1;
     for (size_t i = 0; i < view.particle_count; ++i) {
         if (view.accelerations_x[i] != first_run[3 * i + 0] ||
@@ -207,16 +207,16 @@ static void test_tree_structure_and_determinism(void) {
             break;
         }
     }
-    HPCSIM_ASSERT(identical);
+    N_BODY_SIM_PRO_ASSERT(identical);
 
-    hpcsim_barnes_hut_tree_destroy(tree);
-    hpcsim_particle_system_destroy(particle_system);
+    n_body_sim_pro_barnes_hut_tree_destroy(tree);
+    n_body_sim_pro_particle_system_destroy(particle_system);
 }
 
 int main(void) {
-    HPCSIM_TEST_SUITE_BEGIN();
-    HPCSIM_TEST_RUN(test_two_body_barnes_hut_is_exact);
-    HPCSIM_TEST_RUN(test_theta_tradeoff_and_accuracy);
-    HPCSIM_TEST_RUN(test_tree_structure_and_determinism);
-    return HPCSIM_TEST_SUITE_END();
+    N_BODY_SIM_PRO_TEST_SUITE_BEGIN();
+    N_BODY_SIM_PRO_TEST_RUN(test_two_body_barnes_hut_is_exact);
+    N_BODY_SIM_PRO_TEST_RUN(test_theta_tradeoff_and_accuracy);
+    N_BODY_SIM_PRO_TEST_RUN(test_tree_structure_and_determinism);
+    return N_BODY_SIM_PRO_TEST_SUITE_END();
 }

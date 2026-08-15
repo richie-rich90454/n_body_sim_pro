@@ -1,6 +1,6 @@
-#include "hpcsim/diagnostics/numerics.h"
-#include "hpcsim/physics/gravity.h"
-#include "hpcsim/physics/integrator.h"
+#include "n_body_sim_pro/diagnostics/numerics.h"
+#include "n_body_sim_pro/physics/gravity.h"
+#include "n_body_sim_pro/physics/integrator.h"
 #include "test_harness.h"
 
 #include <math.h>
@@ -35,74 +35,74 @@ static const double HALF_SEPARATION = 0.5;
 static const double SQRT_TWO = 1.4142135623730950488016887242097;
 static const double ORBITAL_PERIOD = 2.0 * M_PI / SQRT_TWO;
 
-static double initialize_circular_orbit(HpcsimParticleSystem* particle_system) {
-    HpcsimError error;
-    hpcsim_error_clear(&error);
-    hpcsim_particle_system_set_particle_count(particle_system, 2, &error);
+static double initialize_circular_orbit(NBodySimProParticleSystem* particle_system) {
+    NBodySimProError error;
+    n_body_sim_pro_error_clear(&error);
+    n_body_sim_pro_particle_system_set_particle_count(particle_system, 2, &error);
 
     const double per_body_speed = SQRT_TWO / 2.0;
-    hpcsim_particle_system_set_position(particle_system, 0,
-                                        (HpcsimVector3){-HALF_SEPARATION, 0.0, 0.0}, &error);
-    hpcsim_particle_system_set_position(particle_system, 1,
-                                        (HpcsimVector3){HALF_SEPARATION, 0.0, 0.0}, &error);
-    hpcsim_particle_system_set_velocity(particle_system, 0,
-                                        (HpcsimVector3){0.0, per_body_speed, 0.0}, &error);
-    hpcsim_particle_system_set_velocity(particle_system, 1,
-                                        (HpcsimVector3){0.0, -per_body_speed, 0.0}, &error);
-    hpcsim_particle_system_set_mass(particle_system, 0, BODY_MASS, &error);
-    hpcsim_particle_system_set_mass(particle_system, 1, BODY_MASS, &error);
+    n_body_sim_pro_particle_system_set_position(particle_system, 0,
+                                        (NBodySimProVector3){-HALF_SEPARATION, 0.0, 0.0}, &error);
+    n_body_sim_pro_particle_system_set_position(particle_system, 1,
+                                        (NBodySimProVector3){HALF_SEPARATION, 0.0, 0.0}, &error);
+    n_body_sim_pro_particle_system_set_velocity(particle_system, 0,
+                                        (NBodySimProVector3){0.0, per_body_speed, 0.0}, &error);
+    n_body_sim_pro_particle_system_set_velocity(particle_system, 1,
+                                        (NBodySimProVector3){0.0, -per_body_speed, 0.0}, &error);
+    n_body_sim_pro_particle_system_set_mass(particle_system, 0, BODY_MASS, &error);
+    n_body_sim_pro_particle_system_set_mass(particle_system, 1, BODY_MASS, &error);
     return per_body_speed;
 }
 
-static double relative_energy_drift_after_orbit(HpcsimIntegratorType integrator,
+static double relative_energy_drift_after_orbit(NBodySimProIntegratorType integrator,
                                                 int orbit_count, int steps_per_orbit,
                                                 double* separation_error_out,
                                                 double* momentum_magnitude_out,
                                                 double* center_of_mass_offset_out) {
-    HpcsimParticleSystem* particle_system = hpcsim_particle_system_create(2);
+    NBodySimProParticleSystem* particle_system = n_body_sim_pro_particle_system_create(2);
     if (particle_system == NULL) {
         return -1.0;
     }
     initialize_circular_orbit(particle_system);
 
-    HpcsimError error;
-    hpcsim_error_clear(&error);
-    HpcsimGravity gravity;
-    hpcsim_gravity_init(&gravity, GRAVITATIONAL_CONSTANT, SOFTENING_LENGTH);
+    NBodySimProError error;
+    n_body_sim_pro_error_clear(&error);
+    NBodySimProGravity gravity;
+    n_body_sim_pro_gravity_init(&gravity, GRAVITATIONAL_CONSTANT, SOFTENING_LENGTH);
 
-    HpcsimParticleSystemView view;
-    hpcsim_particle_system_view(particle_system, &view, &error);
-    hpcsim_gravity_compute_acceleration_reference(&view, &gravity, NULL, &error);
+    NBodySimProParticleSystemView view;
+    n_body_sim_pro_particle_system_view(particle_system, &view, &error);
+    n_body_sim_pro_gravity_compute_acceleration_reference(&view, &gravity, NULL, &error);
 
     const double timestep = ORBITAL_PERIOD / (double)steps_per_orbit;
 
-    HpcsimDiagnosticsQuantities initial_diagnostics;
+    NBodySimProDiagnosticsQuantities initial_diagnostics;
     double initial_potential_energy = 0.0;
-    hpcsim_diagnostics_compute_global(&view, &initial_diagnostics, &error);
-    hpcsim_diagnostics_compute_potential_energy(&view, &gravity,
+    n_body_sim_pro_diagnostics_compute_global(&view, &initial_diagnostics, &error);
+    n_body_sim_pro_diagnostics_compute_potential_energy(&view, &gravity,
                                                 &initial_potential_energy, &error);
     const double initial_total_energy =
         initial_diagnostics.kinetic_energy + initial_potential_energy;
 
     const int total_steps = orbit_count * steps_per_orbit;
     for (int step = 0; step < total_steps; ++step) {
-        hpcsim_integrator_advance(&view, &gravity, integrator, timestep,
-                                  hpcsim_gravity_compute_acceleration_reference, NULL,
+        n_body_sim_pro_integrator_advance(&view, &gravity, integrator, timestep,
+                                  n_body_sim_pro_gravity_compute_acceleration_reference, NULL,
                                   &error);
     }
 
-    HpcsimDiagnosticsQuantities final_diagnostics;
+    NBodySimProDiagnosticsQuantities final_diagnostics;
     double final_potential_energy = 0.0;
-    hpcsim_diagnostics_compute_global(&view, &final_diagnostics, &error);
-    hpcsim_diagnostics_compute_potential_energy(&view, &gravity, &final_potential_energy,
+    n_body_sim_pro_diagnostics_compute_global(&view, &final_diagnostics, &error);
+    n_body_sim_pro_diagnostics_compute_potential_energy(&view, &gravity, &final_potential_energy,
                                                 &error);
     const double final_total_energy =
         final_diagnostics.kinetic_energy + final_potential_energy;
 
-    HpcsimVector3 position_0;
-    HpcsimVector3 position_1;
-    hpcsim_particle_system_position(particle_system, 0, &position_0, &error);
-    hpcsim_particle_system_position(particle_system, 1, &position_1, &error);
+    NBodySimProVector3 position_0;
+    NBodySimProVector3 position_1;
+    n_body_sim_pro_particle_system_position(particle_system, 0, &position_0, &error);
+    n_body_sim_pro_particle_system_position(particle_system, 1, &position_1, &error);
     const double delta_x = position_1.x - position_0.x;
     const double delta_y = position_1.y - position_0.y;
     const double delta_z = position_1.z - position_0.z;
@@ -127,7 +127,7 @@ static double relative_energy_drift_after_orbit(HpcsimIntegratorType integrator,
         *center_of_mass_offset_out = center_of_mass_offset;
     }
 
-    hpcsim_particle_system_destroy(particle_system);
+    n_body_sim_pro_particle_system_destroy(particle_system);
 
     const double reference_energy =
         fabs(initial_total_energy) > 0.0 ? fabs(initial_total_energy) : 1.0;
@@ -139,15 +139,15 @@ static void test_leapfrog_keeps_circular_orbit_stable(void) {
     double momentum_magnitude = 0.0;
     double center_of_mass_offset = 0.0;
     const double energy_drift =
-        relative_energy_drift_after_orbit(HPCSIM_INTEGRATOR_LEAPFROG, 8, 500,
+        relative_energy_drift_after_orbit(N_BODY_SIM_PRO_INTEGRATOR_LEAPFROG, 8, 500,
                                           &separation_error, &momentum_magnitude,
                                           &center_of_mass_offset);
 
-    HPCSIM_ASSERT(energy_drift >= 0.0);
-    HPCSIM_ASSERT(energy_drift < 1e-3);
-    HPCSIM_ASSERT(separation_error < 1e-2);
-    HPCSIM_ASSERT(momentum_magnitude < 1e-12);
-    HPCSIM_ASSERT(center_of_mass_offset < 1e-12);
+    N_BODY_SIM_PRO_ASSERT(energy_drift >= 0.0);
+    N_BODY_SIM_PRO_ASSERT(energy_drift < 1e-3);
+    N_BODY_SIM_PRO_ASSERT(separation_error < 1e-2);
+    N_BODY_SIM_PRO_ASSERT(momentum_magnitude < 1e-12);
+    N_BODY_SIM_PRO_ASSERT(center_of_mass_offset < 1e-12);
 }
 
 static void test_velocity_verlet_keeps_circular_orbit_stable(void) {
@@ -155,15 +155,15 @@ static void test_velocity_verlet_keeps_circular_orbit_stable(void) {
     double momentum_magnitude = 0.0;
     double center_of_mass_offset = 0.0;
     const double energy_drift =
-        relative_energy_drift_after_orbit(HPCSIM_INTEGRATOR_VELOCITY_VERLET, 8, 500,
+        relative_energy_drift_after_orbit(N_BODY_SIM_PRO_INTEGRATOR_VELOCITY_VERLET, 8, 500,
                                           &separation_error, &momentum_magnitude,
                                           &center_of_mass_offset);
 
-    HPCSIM_ASSERT(energy_drift >= 0.0);
-    HPCSIM_ASSERT(energy_drift < 1e-3);
-    HPCSIM_ASSERT(separation_error < 1e-2);
-    HPCSIM_ASSERT(momentum_magnitude < 1e-12);
-    HPCSIM_ASSERT(center_of_mass_offset < 1e-12);
+    N_BODY_SIM_PRO_ASSERT(energy_drift >= 0.0);
+    N_BODY_SIM_PRO_ASSERT(energy_drift < 1e-3);
+    N_BODY_SIM_PRO_ASSERT(separation_error < 1e-2);
+    N_BODY_SIM_PRO_ASSERT(momentum_magnitude < 1e-12);
+    N_BODY_SIM_PRO_ASSERT(center_of_mass_offset < 1e-12);
 }
 
 static void test_euler_drifts_more_than_symplectic(void) {
@@ -171,22 +171,22 @@ static void test_euler_drifts_more_than_symplectic(void) {
     double momentum_magnitude = 0.0;
     double center_of_mass_offset = 0.0;
     const double euler_drift =
-        relative_energy_drift_after_orbit(HPCSIM_INTEGRATOR_EULER, 1, 500,
+        relative_energy_drift_after_orbit(N_BODY_SIM_PRO_INTEGRATOR_EULER, 1, 500,
                                           &separation_error, &momentum_magnitude,
                                           &center_of_mass_offset);
 
     const double verlet_drift =
-        relative_energy_drift_after_orbit(HPCSIM_INTEGRATOR_VELOCITY_VERLET, 1, 500,
+        relative_energy_drift_after_orbit(N_BODY_SIM_PRO_INTEGRATOR_VELOCITY_VERLET, 1, 500,
                                           NULL, NULL, NULL);
 
-    HPCSIM_ASSERT(euler_drift > 1e-3);
-    HPCSIM_ASSERT(euler_drift > verlet_drift);
+    N_BODY_SIM_PRO_ASSERT(euler_drift > 1e-3);
+    N_BODY_SIM_PRO_ASSERT(euler_drift > verlet_drift);
 }
 
 int main(void) {
-    HPCSIM_TEST_SUITE_BEGIN();
-    HPCSIM_TEST_RUN(test_leapfrog_keeps_circular_orbit_stable);
-    HPCSIM_TEST_RUN(test_velocity_verlet_keeps_circular_orbit_stable);
-    HPCSIM_TEST_RUN(test_euler_drifts_more_than_symplectic);
-    return HPCSIM_TEST_SUITE_END();
+    N_BODY_SIM_PRO_TEST_SUITE_BEGIN();
+    N_BODY_SIM_PRO_TEST_RUN(test_leapfrog_keeps_circular_orbit_stable);
+    N_BODY_SIM_PRO_TEST_RUN(test_velocity_verlet_keeps_circular_orbit_stable);
+    N_BODY_SIM_PRO_TEST_RUN(test_euler_drifts_more_than_symplectic);
+    return N_BODY_SIM_PRO_TEST_SUITE_END();
 }

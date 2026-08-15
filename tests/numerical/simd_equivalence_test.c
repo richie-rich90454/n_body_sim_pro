@@ -1,8 +1,8 @@
-#include "hpcsim/barnes_hut/barnes_hut.h"
-#include "hpcsim/generation/presets.h"
-#include "hpcsim/physics/gravity.h"
-#include "hpcsim/simd/backend.h"
-#include "hpcsim/simd/cpu.h"
+#include "n_body_sim_pro/barnes_hut/barnes_hut.h"
+#include "n_body_sim_pro/generation/presets.h"
+#include "n_body_sim_pro/physics/gravity.h"
+#include "n_body_sim_pro/simd/backend.h"
+#include "n_body_sim_pro/simd/cpu.h"
 #include "test_harness.h"
 
 #include <math.h>
@@ -20,19 +20,19 @@
 
 enum { TEST_PARTICLE_COUNT = 300 };
 
-static HpcsimParticleSystem* make_random_system(size_t particle_count, uint64_t seed) {
-    HpcsimParticleSystem* particle_system = hpcsim_particle_system_create(particle_count);
+static NBodySimProParticleSystem* make_random_system(size_t particle_count, uint64_t seed) {
+    NBodySimProParticleSystem* particle_system = n_body_sim_pro_particle_system_create(particle_count);
     if (particle_system == NULL) {
         return NULL;
     }
-    HpcsimError error;
-    hpcsim_error_clear(&error);
-    HpcsimPresetParameters parameters = {particle_count, seed};
-    hpcsim_preset_generate(particle_system, HPCSIM_PRESET_RANDOM_CLOUD, &parameters, &error);
+    NBodySimProError error;
+    n_body_sim_pro_error_clear(&error);
+    NBodySimProPresetParameters parameters = {particle_count, seed};
+    n_body_sim_pro_preset_generate(particle_system, N_BODY_SIM_PRO_PRESET_RANDOM_CLOUD, &parameters, &error);
     return particle_system;
 }
 
-static double maximum_relative_error(HpcsimParticleSystemView* view,
+static double maximum_relative_error(NBodySimProParticleSystemView* view,
                                      const double reference[3 * TEST_PARTICLE_COUNT],
                                      size_t particle_count) {
     double maximum_error = 0.0;
@@ -53,125 +53,125 @@ static double maximum_relative_error(HpcsimParticleSystemView* view,
 }
 
 static void test_avx2_matches_reference_with_softening(void) {
-    HpcsimCpuFeatures features = hpcsim_cpu_detect_features();
+    NBodySimProCpuFeatures features = n_body_sim_pro_cpu_detect_features();
     if (!features.has_avx2) {
-        HPCSIM_ASSERT(1);
+        N_BODY_SIM_PRO_ASSERT(1);
         return;
     }
 
     const size_t particle_count = TEST_PARTICLE_COUNT;
-    HpcsimParticleSystem* particle_system = make_random_system(particle_count, 7);
-    HPCSIM_ASSERT(particle_system != NULL);
+    NBodySimProParticleSystem* particle_system = make_random_system(particle_count, 7);
+    N_BODY_SIM_PRO_ASSERT(particle_system != NULL);
     if (particle_system == NULL) {
         return;
     }
-    HpcsimError error;
-    hpcsim_error_clear(&error);
-    HpcsimParticleSystemView view;
-    hpcsim_particle_system_view(particle_system, &view, &error);
+    NBodySimProError error;
+    n_body_sim_pro_error_clear(&error);
+    NBodySimProParticleSystemView view;
+    n_body_sim_pro_particle_system_view(particle_system, &view, &error);
 
-    HpcsimGravity gravity;
-    hpcsim_gravity_init(&gravity, 1.0, 0.02);
+    NBodySimProGravity gravity;
+    n_body_sim_pro_gravity_init(&gravity, 1.0, 0.02);
 
     double reference[3 * TEST_PARTICLE_COUNT];
-    hpcsim_gravity_compute_acceleration_reference(&view, &gravity, NULL, &error);
+    n_body_sim_pro_gravity_compute_acceleration_reference(&view, &gravity, NULL, &error);
     for (size_t i = 0; i < particle_count; ++i) {
         reference[3 * i + 0] = view.accelerations_x[i];
         reference[3 * i + 1] = view.accelerations_y[i];
         reference[3 * i + 2] = view.accelerations_z[i];
     }
 
-    hpcsim_gravity_compute_acceleration_avx2(&view, &gravity, NULL, &error);
+    n_body_sim_pro_gravity_compute_acceleration_avx2(&view, &gravity, NULL, &error);
     const double relative_error = maximum_relative_error(&view, reference, particle_count);
-    HPCSIM_ASSERT(relative_error < 1.0e-10);
-    hpcsim_particle_system_destroy(particle_system);
+    N_BODY_SIM_PRO_ASSERT(relative_error < 1.0e-10);
+    n_body_sim_pro_particle_system_destroy(particle_system);
 }
 
 static void test_avx2_matches_reference_without_softening(void) {
-    HpcsimCpuFeatures features = hpcsim_cpu_detect_features();
+    NBodySimProCpuFeatures features = n_body_sim_pro_cpu_detect_features();
     if (!features.has_avx2) {
-        HPCSIM_ASSERT(1);
+        N_BODY_SIM_PRO_ASSERT(1);
         return;
     }
 
     const size_t particle_count = TEST_PARTICLE_COUNT;
-    HpcsimParticleSystem* particle_system = make_random_system(particle_count, 7);
-    HPCSIM_ASSERT(particle_system != NULL);
+    NBodySimProParticleSystem* particle_system = make_random_system(particle_count, 7);
+    N_BODY_SIM_PRO_ASSERT(particle_system != NULL);
     if (particle_system == NULL) {
         return;
     }
-    HpcsimError error;
-    hpcsim_error_clear(&error);
-    HpcsimParticleSystemView view;
-    hpcsim_particle_system_view(particle_system, &view, &error);
+    NBodySimProError error;
+    n_body_sim_pro_error_clear(&error);
+    NBodySimProParticleSystemView view;
+    n_body_sim_pro_particle_system_view(particle_system, &view, &error);
 
-    HpcsimGravity gravity;
-    hpcsim_gravity_init(&gravity, 1.0, 0.0);
+    NBodySimProGravity gravity;
+    n_body_sim_pro_gravity_init(&gravity, 1.0, 0.0);
 
     double reference[3 * TEST_PARTICLE_COUNT];
-    hpcsim_gravity_compute_acceleration_reference(&view, &gravity, NULL, &error);
+    n_body_sim_pro_gravity_compute_acceleration_reference(&view, &gravity, NULL, &error);
     for (size_t i = 0; i < particle_count; ++i) {
         reference[3 * i + 0] = view.accelerations_x[i];
         reference[3 * i + 1] = view.accelerations_y[i];
         reference[3 * i + 2] = view.accelerations_z[i];
     }
 
-    hpcsim_gravity_compute_acceleration_avx2(&view, &gravity, NULL, &error);
+    n_body_sim_pro_gravity_compute_acceleration_avx2(&view, &gravity, NULL, &error);
     const double relative_error = maximum_relative_error(&view, reference, particle_count);
-    HPCSIM_ASSERT(relative_error < 1.0e-10);
+    N_BODY_SIM_PRO_ASSERT(relative_error < 1.0e-10);
 
     /* Without softening the self-lane guard must still produce finite values. */
-    HPCSIM_ASSERT(!isnan(view.accelerations_x[0]));
-    hpcsim_particle_system_destroy(particle_system);
+    N_BODY_SIM_PRO_ASSERT(!isnan(view.accelerations_x[0]));
+    n_body_sim_pro_particle_system_destroy(particle_system);
 }
 
 static void test_openmp_avx2_matches_reference(void) {
-    HpcsimCpuFeatures features = hpcsim_cpu_detect_features();
+    NBodySimProCpuFeatures features = n_body_sim_pro_cpu_detect_features();
     if (!features.has_avx2) {
-        HPCSIM_ASSERT(1);
+        N_BODY_SIM_PRO_ASSERT(1);
         return;
     }
 
     const size_t particle_count = TEST_PARTICLE_COUNT;
-    HpcsimParticleSystem* particle_system = make_random_system(particle_count, 7);
-    HPCSIM_ASSERT(particle_system != NULL);
+    NBodySimProParticleSystem* particle_system = make_random_system(particle_count, 7);
+    N_BODY_SIM_PRO_ASSERT(particle_system != NULL);
     if (particle_system == NULL) {
         return;
     }
-    HpcsimError error;
-    hpcsim_error_clear(&error);
-    HpcsimParticleSystemView view;
-    hpcsim_particle_system_view(particle_system, &view, &error);
+    NBodySimProError error;
+    n_body_sim_pro_error_clear(&error);
+    NBodySimProParticleSystemView view;
+    n_body_sim_pro_particle_system_view(particle_system, &view, &error);
 
-    HpcsimGravity gravity;
-    hpcsim_gravity_init(&gravity, 1.0, 0.02);
+    NBodySimProGravity gravity;
+    n_body_sim_pro_gravity_init(&gravity, 1.0, 0.02);
 
     double reference[3 * TEST_PARTICLE_COUNT];
-    hpcsim_gravity_compute_acceleration_reference(&view, &gravity, NULL, &error);
+    n_body_sim_pro_gravity_compute_acceleration_reference(&view, &gravity, NULL, &error);
     for (size_t i = 0; i < particle_count; ++i) {
         reference[3 * i + 0] = view.accelerations_x[i];
         reference[3 * i + 1] = view.accelerations_y[i];
         reference[3 * i + 2] = view.accelerations_z[i];
     }
 
-    hpcsim_gravity_compute_acceleration_openmp_avx2(&view, &gravity, NULL, &error);
+    n_body_sim_pro_gravity_compute_acceleration_openmp_avx2(&view, &gravity, NULL, &error);
     const double relative_error = maximum_relative_error(&view, reference, particle_count);
-    HPCSIM_ASSERT(relative_error < 1.0e-10);
-    hpcsim_particle_system_destroy(particle_system);
+    N_BODY_SIM_PRO_ASSERT(relative_error < 1.0e-10);
+    n_body_sim_pro_particle_system_destroy(particle_system);
 }
 
 static void test_backend_selection(void) {
-    HpcsimCpuFeatures features = hpcsim_cpu_detect_features();
-    const HpcsimSimdBackend backend = hpcsim_simd_best_available_backend(&features);
-    HPCSIM_ASSERT(backend == HPCSIM_SIMD_BACKEND_SCALAR ||
-                  backend == HPCSIM_SIMD_BACKEND_AVX2);
-    HPCSIM_ASSERT(hpcsim_simd_backend_string(backend) != NULL);
+    NBodySimProCpuFeatures features = n_body_sim_pro_cpu_detect_features();
+    const NBodySimProSimdBackend backend = n_body_sim_pro_simd_best_available_backend(&features);
+    N_BODY_SIM_PRO_ASSERT(backend == N_BODY_SIM_PRO_SIMD_BACKEND_SCALAR ||
+                  backend == N_BODY_SIM_PRO_SIMD_BACKEND_AVX2);
+    N_BODY_SIM_PRO_ASSERT(n_body_sim_pro_simd_backend_string(backend) != NULL);
     if (features.has_avx2 && features.has_fma) {
-        HPCSIM_ASSERT(backend == HPCSIM_SIMD_BACKEND_AVX2);
+        N_BODY_SIM_PRO_ASSERT(backend == N_BODY_SIM_PRO_SIMD_BACKEND_AVX2);
     }
 }
 
-static double root_mean_square_relative_error(HpcsimParticleSystemView* view,
+static double root_mean_square_relative_error(NBodySimProParticleSystemView* view,
                                               const double reference[3 * TEST_PARTICLE_COUNT],
                                               size_t particle_count) {
     double sum_error_squared = 0.0;
@@ -193,39 +193,39 @@ static double root_mean_square_relative_error(HpcsimParticleSystemView* view,
 }
 
 static void test_barnes_hut_avx2_matches_scalar_barnes_hut(void) {
-    HpcsimCpuFeatures features = hpcsim_cpu_detect_features();
+    NBodySimProCpuFeatures features = n_body_sim_pro_cpu_detect_features();
     if (!features.has_avx2) {
-        HPCSIM_ASSERT(1);
+        N_BODY_SIM_PRO_ASSERT(1);
         return;
     }
 
     const size_t particle_count = TEST_PARTICLE_COUNT;
-    HpcsimParticleSystem* particle_system = make_random_system(particle_count, 11);
-    HPCSIM_ASSERT(particle_system != NULL);
+    NBodySimProParticleSystem* particle_system = make_random_system(particle_count, 11);
+    N_BODY_SIM_PRO_ASSERT(particle_system != NULL);
     if (particle_system == NULL) {
         return;
     }
-    HpcsimError error;
-    hpcsim_error_clear(&error);
-    HpcsimParticleSystemView view;
-    hpcsim_particle_system_view(particle_system, &view, &error);
+    NBodySimProError error;
+    n_body_sim_pro_error_clear(&error);
+    NBodySimProParticleSystemView view;
+    n_body_sim_pro_particle_system_view(particle_system, &view, &error);
 
-    HpcsimGravity gravity;
-    hpcsim_gravity_init(&gravity, 1.0, 0.02);
+    NBodySimProGravity gravity;
+    n_body_sim_pro_gravity_init(&gravity, 1.0, 0.02);
 
-    HpcsimBarnesHutTree* tree = hpcsim_barnes_hut_tree_create(&error);
-    HPCSIM_ASSERT(tree != NULL);
+    NBodySimProBarnesHutTree* tree = n_body_sim_pro_barnes_hut_tree_create(&error);
+    N_BODY_SIM_PRO_ASSERT(tree != NULL);
     if (tree == NULL) {
-        hpcsim_particle_system_destroy(particle_system);
+        n_body_sim_pro_particle_system_destroy(particle_system);
         return;
     }
     /* The batched SIMD traversal mirrors the scalar traversal's acceptance
      * decisions exactly, so results differ only by floating-point summation
      * order. */
-    hpcsim_barnes_hut_tree_set_theta(tree, 0.7);
+    n_body_sim_pro_barnes_hut_tree_set_theta(tree, 0.7);
 
     /* Scalar Barnes-Hut reference. */
-    hpcsim_barnes_hut_compute_acceleration(&view, &gravity, tree, &error);
+    n_body_sim_pro_barnes_hut_compute_acceleration(&view, &gravity, tree, &error);
     double reference[3 * TEST_PARTICLE_COUNT];
     for (size_t i = 0; i < particle_count; ++i) {
         reference[3 * i + 0] = view.accelerations_x[i];
@@ -234,26 +234,26 @@ static void test_barnes_hut_avx2_matches_scalar_barnes_hut(void) {
     }
 
     /* AVX2 Barnes-Hut must agree within tolerance. */
-    hpcsim_barnes_hut_compute_acceleration_avx2(&view, &gravity, tree, &error);
+    n_body_sim_pro_barnes_hut_compute_acceleration_avx2(&view, &gravity, tree, &error);
     const double serial_error = root_mean_square_relative_error(&view, reference,
                                                                 particle_count);
-    HPCSIM_ASSERT(serial_error < 1.0e-9);
+    N_BODY_SIM_PRO_ASSERT(serial_error < 1.0e-9);
 
-    hpcsim_barnes_hut_compute_acceleration_openmp_avx2(&view, &gravity, tree, &error);
+    n_body_sim_pro_barnes_hut_compute_acceleration_openmp_avx2(&view, &gravity, tree, &error);
     const double parallel_error = root_mean_square_relative_error(&view, reference,
                                                                   particle_count);
-    HPCSIM_ASSERT(parallel_error < 1.0e-9);
+    N_BODY_SIM_PRO_ASSERT(parallel_error < 1.0e-9);
 
-    hpcsim_barnes_hut_tree_destroy(tree);
-    hpcsim_particle_system_destroy(particle_system);
+    n_body_sim_pro_barnes_hut_tree_destroy(tree);
+    n_body_sim_pro_particle_system_destroy(particle_system);
 }
 
 int main(void) {
-    HPCSIM_TEST_SUITE_BEGIN();
-    HPCSIM_TEST_RUN(test_avx2_matches_reference_with_softening);
-    HPCSIM_TEST_RUN(test_avx2_matches_reference_without_softening);
-    HPCSIM_TEST_RUN(test_openmp_avx2_matches_reference);
-    HPCSIM_TEST_RUN(test_barnes_hut_avx2_matches_scalar_barnes_hut);
-    HPCSIM_TEST_RUN(test_backend_selection);
-    return HPCSIM_TEST_SUITE_END();
+    N_BODY_SIM_PRO_TEST_SUITE_BEGIN();
+    N_BODY_SIM_PRO_TEST_RUN(test_avx2_matches_reference_with_softening);
+    N_BODY_SIM_PRO_TEST_RUN(test_avx2_matches_reference_without_softening);
+    N_BODY_SIM_PRO_TEST_RUN(test_openmp_avx2_matches_reference);
+    N_BODY_SIM_PRO_TEST_RUN(test_barnes_hut_avx2_matches_scalar_barnes_hut);
+    N_BODY_SIM_PRO_TEST_RUN(test_backend_selection);
+    return N_BODY_SIM_PRO_TEST_SUITE_END();
 }
