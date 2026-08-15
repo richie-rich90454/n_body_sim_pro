@@ -6,7 +6,9 @@ add_library(${HPCSIM_C_LIBRARY} STATIC
     memory/allocator.c
     physics/gravity.c
     physics/integrator.c
-    diagnostics/numerics.c)
+    diagnostics/numerics.c
+    generation/random.c
+    generation/presets.c)
 
 target_include_directories(${HPCSIM_C_LIBRARY} PUBLIC
     ${CMAKE_SOURCE_DIR}/include)
