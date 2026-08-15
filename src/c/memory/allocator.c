@@ -1,6 +1,7 @@
 #include "hpcsim/memory/allocator.h"
 
 #include <stdint.h>
+#include <string.h>
 #include <stdlib.h>
 
 typedef struct HpcsimAllocationHeader {
@@ -117,4 +118,32 @@ int hpcsim_allocation_query(const void* pointer, size_t* size,
         *category = header->category;
     }
     return 0;
+}
+
+void* hpcsim_reallocate(void* pointer, size_t new_size, const char* source_file,
+                        int source_line) {
+    if (pointer == NULL) {
+        return hpcsim_allocate(new_size, sizeof(void*), HPCSIM_ALLOCATION_CATEGORY_OTHER,
+                               source_file, source_line);
+    }
+    if (new_size == 0) {
+        return NULL;
+    }
+    HpcsimAllocationHeader* const* back_reference =
+        (HpcsimAllocationHeader* const*)((uintptr_t)pointer - (uintptr_t)sizeof(void*));
+    HpcsimAllocationHeader* header = *back_reference;
+    const size_t old_size = header->size;
+    if (old_size >= new_size) {
+        header->size = new_size;
+        return pointer;
+    }
+
+    void* replacement = hpcsim_allocate(new_size, header->alignment, header->category,
+                                        source_file, source_line);
+    if (replacement == NULL) {
+        return NULL;
+    }
+    memcpy(replacement, pointer, old_size);
+    free(header);
+    return replacement;
 }
