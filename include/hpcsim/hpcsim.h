@@ -19,6 +19,8 @@
 #include "hpcsim/memory/allocator.h"
 #include "hpcsim/memory/allocation_tracker.h"
 #include "hpcsim/memory/memory_estimate.h"
+#include "hpcsim/mpi/distributed_barnes_hut.h"
+#include "hpcsim/mpi/mpi_runtime.h"
 #include "hpcsim/physics/gravity.h"
 #include "hpcsim/physics/integrator.h"
 #include "hpcsim/simd/backend.h"
