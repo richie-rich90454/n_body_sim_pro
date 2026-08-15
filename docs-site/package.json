@@ -1,8 +1,8 @@
 {
-  "name": "hpcsim-docs",
+  "name": "n_body_sim_pro-docs",
   "version": "1.0.0",
   "private": true,
-  "description": "HPCSim technical documentation site (VitePress)",
+  "description": "N-Body Sim Pro technical documentation site (VitePress)",
   "type": "module",
   "scripts": {
     "dev": "vitepress dev .",

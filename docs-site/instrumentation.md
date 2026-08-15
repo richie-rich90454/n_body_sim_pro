@@ -31,7 +31,7 @@ are nearly free. **No logging calls exist in the numerical loops.**
 The allocator attaches a header carrying size, alignment, and a category to
 every internal allocation. The allocation tracker (`allocation_tracker.c`)
 records events into **thread-local staging buffers** and flushes them in
-batches under one lock — the hot allocation path is a TLS store plus one
+batches under one lock 鈥?the hot allocation path is a TLS store plus one
 flag check. When disabled it is a single branch, so benchmark runs are not
 invalidated by synchronous per-allocation logging.
 
@@ -39,7 +39,7 @@ Categories: `particle_storage`, `octree_nodes`, `thread_workspace`,
 `temporary_buffer`, `checkpoint`, `renderer`, `ui`, `other`.
 
 The memory panel shows live/peak bytes, live allocations, allocation and
-deallocation rates, and a per-category breakdown — all from the tracker's
+deallocation rates, and a per-category breakdown 鈥?all from the tracker's
 real counters.
 
 ## Phase telemetry
@@ -61,11 +61,11 @@ Per step, the controller refreshes from the actual particle state:
 - kinetic energy
 - momentum error (relative to the initial momentum scale)
 - center-of-mass displacement
-- energy drift (throttled, only for ≤ 20,000 particles, because the
-  potential sum is O(N²))
+- energy drift (throttled, only for 鈮?20,000 particles, because the
+  potential sum is O(N虏))
 
 The numerics panel renders these live; for large systems energy drift shows
-`N/A (N > 20000, O(N^2) potential)` — honest about why it is not computed.
+`N/A (N > 20000, O(N^2) potential)` 鈥?honest about why it is not computed.
 
 ## Developer console
 
@@ -81,11 +81,11 @@ dashboard:
 
 ```mermaid
 flowchart TD
-    subgraph Window["HPCSim window"]
-        Title["HPCSim   FPS / timing"]
-        Left["SIMULATION · NUMERICS<br/>PERFORMANCE · MEMORY"]
+    subgraph Window["N-Body Sim Pro window"]
+        Title["N-Body Sim Pro   FPS / timing"]
+        Left["SIMULATION 路 NUMERICS<br/>PERFORMANCE 路 MEMORY"]
         Viewport["GALAXY VIEWPORT"]
-        Right["CAMERA · ORBITS"]
+        Right["CAMERA 路 ORBITS"]
         Bottom["DEVELOPER CONSOLE"]
     end
     Title --> Viewport
@@ -93,6 +93,6 @@ flowchart TD
     Viewport --> Bottom
 ```
 
-Simulation controls (preset, particles, seed, algorithm, θ, integrator,
+Simulation controls (preset, particles, seed, algorithm, 胃, integrator,
 timestep, thread count) live in the simulation panel; advanced internal
 parameters stay out of the main panel.

@@ -1,5 +1,5 @@
 /*
- * HPCSim technical documentation theme.
+ * N-Body Sim Pro technical documentation theme.
  *
  * Deliberately cold and instrumental, matching the simulation window's
  * workstation aesthetic: near-black surfaces, restrained desaturated
@@ -8,38 +8,38 @@
  */
 
 :root {
-  --hpcsim-bg: #0b0b10;
-  --hpcsim-bg-soft: #0d0d14;
-  --hpcsim-bg-raise: #12121b;
-  --hpcsim-border: #232636;
-  --hpcsim-border-strong: #333849;
-  --hpcsim-text: #b7c0cf;
-  --hpcsim-text-dim: #7d8698;
-  --hpcsim-text-bright: #dfe6f0;
-  --hpcsim-accent: #7fb8c6;
-  --hpcsim-accent-dim: #4a7680;
-  --hpcsim-warn: #d8b46a;
-  --hpcsim-err: #d4767d;
-  --hpcsim-ok: #8fc98f;
+  --n_body_sim_pro-bg: #0b0b10;
+  --n_body_sim_pro-bg-soft: #0d0d14;
+  --n_body_sim_pro-bg-raise: #12121b;
+  --n_body_sim_pro-border: #232636;
+  --n_body_sim_pro-border-strong: #333849;
+  --n_body_sim_pro-text: #b7c0cf;
+  --n_body_sim_pro-text-dim: #7d8698;
+  --n_body_sim_pro-text-bright: #dfe6f0;
+  --n_body_sim_pro-accent: #7fb8c6;
+  --n_body_sim_pro-accent-dim: #4a7680;
+  --n_body_sim_pro-warn: #d8b46a;
+  --n_body_sim_pro-err: #d4767d;
+  --n_body_sim_pro-ok: #8fc98f;
 
-  --vp-c-bg: var(--hpcsim-bg);
-  --vp-c-bg-alt: var(--hpcsim-bg-soft);
-  --vp-c-bg-elv: var(--hpcsim-bg-raise);
-  --vp-c-bg-soft: var(--hpcsim-bg-raise);
-  --vp-c-text-1: var(--hpcsim-text-bright);
-  --vp-c-text-2: var(--hpcsim-text);
-  --vp-c-text-3: var(--hpcsim-text-dim);
-  --vp-c-border: var(--hpcsim-border);
-  --vp-c-border-hard: var(--hpcsim-border-strong);
-  --vp-c-divider: var(--hpcsim-border);
-  --vp-c-gutter: var(--hpcsim-border);
-  --vp-c-brand-1: var(--hpcsim-accent);
-  --vp-c-brand-2: var(--hpcsim-accent);
-  --vp-c-brand-3: var(--hpcsim-accent-dim);
+  --vp-c-bg: var(--n_body_sim_pro-bg);
+  --vp-c-bg-alt: var(--n_body_sim_pro-bg-soft);
+  --vp-c-bg-elv: var(--n_body_sim_pro-bg-raise);
+  --vp-c-bg-soft: var(--n_body_sim_pro-bg-raise);
+  --vp-c-text-1: var(--n_body_sim_pro-text-bright);
+  --vp-c-text-2: var(--n_body_sim_pro-text);
+  --vp-c-text-3: var(--n_body_sim_pro-text-dim);
+  --vp-c-border: var(--n_body_sim_pro-border);
+  --vp-c-border-hard: var(--n_body_sim_pro-border-strong);
+  --vp-c-divider: var(--n_body_sim_pro-border);
+  --vp-c-gutter: var(--n_body_sim_pro-border);
+  --vp-c-brand-1: var(--n_body_sim_pro-accent);
+  --vp-c-brand-2: var(--n_body_sim_pro-accent);
+  --vp-c-brand-3: var(--n_body_sim_pro-accent-dim);
   --vp-c-brand-soft: rgba(127, 184, 198, 0.10);
-  --vp-c-warning-1: var(--hpcsim-warn);
-  --vp-c-danger-1: var(--hpcsim-err);
-  --vp-c-tip-1: var(--hpcsim-ok);
+  --vp-c-warning-1: var(--n_body_sim_pro-warn);
+  --vp-c-danger-1: var(--n_body_sim_pro-err);
+  --vp-c-tip-1: var(--n_body_sim_pro-ok);
   --vp-font-family-base: "Noto Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --vp-font-family-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --vp-code-font-size: 0.87em;
@@ -50,14 +50,14 @@
 }
 
 .dark {
-  --vp-c-bg: var(--hpcsim-bg);
-  --vp-c-bg-alt: var(--hpcsim-bg-soft);
-  --vp-c-bg-elv: var(--hpcsim-bg-raise);
-  --vp-c-bg-soft: var(--hpcsim-bg-raise);
+  --vp-c-bg: var(--n_body_sim_pro-bg);
+  --vp-c-bg-alt: var(--n_body_sim_pro-bg-soft);
+  --vp-c-bg-elv: var(--n_body_sim_pro-bg-raise);
+  --vp-c-bg-soft: var(--n_body_sim_pro-bg-raise);
 }
 
 body {
-  background-color: var(--hpcsim-bg);
+  background-color: var(--n_body_sim_pro-bg);
 }
 
 /* Fine technical grid on the page background */
@@ -73,8 +73,8 @@ body {
   font-family: var(--vp-font-family-mono);
   font-weight: 600;
   letter-spacing: -0.02em;
-  color: var(--hpcsim-text-bright);
-  border-bottom: 1px solid var(--hpcsim-border);
+  color: var(--n_body_sim_pro-text-bright);
+  border-bottom: 1px solid var(--n_body_sim_pro-border);
   padding-bottom: 0.6rem;
 }
 .VPDoc h2 {
@@ -82,7 +82,7 @@ body {
   font-weight: 600;
   font-size: 1.25rem;
   letter-spacing: -0.01em;
-  color: var(--hpcsim-accent);
+  color: var(--n_body_sim_pro-accent);
 }
 .VPDoc h3 {
   font-family: var(--vp-font-family-mono);
@@ -100,8 +100,8 @@ body {
   font-family: var(--vp-font-family-mono);
 }
 .VPDoc th {
-  background: var(--hpcsim-bg-raise);
-  color: var(--hpcsim-accent);
+  background: var(--n_body_sim_pro-bg-raise);
+  color: var(--n_body_sim_pro-accent);
   text-align: left;
   text-transform: uppercase;
   font-size: 0.72rem;
@@ -109,7 +109,7 @@ body {
   font-weight: 600;
 }
 .VPDoc th, .VPDoc td {
-  border: 1px solid var(--hpcsim-border);
+  border: 1px solid var(--n_body_sim_pro-border);
   padding: 0.45rem 0.75rem;
 }
 .VPDoc tbody tr:nth-child(odd) {
@@ -122,13 +122,13 @@ body {
 
 /* Code blocks: terminal panels */
 .vp-doc div[class*="language-"] {
-  border: 1px solid var(--hpcsim-border);
+  border: 1px solid var(--n_body_sim_pro-border);
   border-radius: 6px;
 }
 .vp-doc div[class*="language-"]::before {
-  content: "hpcsim $";
+  content: "n_body_sim_pro $";
   font-family: var(--vp-font-family-mono);
-  color: var(--hpcsim-text-dim);
+  color: var(--n_body_sim_pro-text-dim);
   font-size: 0.72rem;
   text-transform: none;
 }
@@ -137,9 +137,9 @@ body {
 .vp-doc :not(pre) > code {
   font-family: var(--vp-font-family-mono);
   font-size: 0.85em;
-  background: var(--hpcsim-bg-raise);
-  border: 1px solid var(--hpcsim-border);
-  color: var(--hpcsim-accent);
+  background: var(--n_body_sim_pro-bg-raise);
+  border: 1px solid var(--n_body_sim_pro-border);
+  color: var(--n_body_sim_pro-accent);
 }
 
 /* Callouts styled as instrument readouts */
@@ -150,23 +150,23 @@ body {
   font-size: 0.85rem;
 }
 .vp-doc .custom-block.info {
-  border-color: var(--hpcsim-border-strong);
-  border-left-color: var(--hpcsim-accent);
+  border-color: var(--n_body_sim_pro-border-strong);
+  border-left-color: var(--n_body_sim_pro-accent);
   background: rgba(127, 184, 198, 0.05);
 }
 .vp-doc .custom-block.tip {
-  border-color: var(--hpcsim-border-strong);
-  border-left-color: var(--hpcsim-ok);
+  border-color: var(--n_body_sim_pro-border-strong);
+  border-left-color: var(--n_body_sim_pro-ok);
   background: rgba(143, 201, 143, 0.05);
 }
 .vp-doc .custom-block.warning {
-  border-color: var(--hpcsim-border-strong);
-  border-left-color: var(--hpcsim-warn);
+  border-color: var(--n_body_sim_pro-border-strong);
+  border-left-color: var(--n_body_sim_pro-warn);
   background: rgba(216, 180, 106, 0.06);
 }
 .vp-doc .custom-block.danger {
-  border-color: var(--hpcsim-border-strong);
-  border-left-color: var(--hpcsim-err);
+  border-color: var(--n_body_sim_pro-border-strong);
+  border-left-color: var(--n_body_sim_pro-err);
   background: rgba(212, 118, 125, 0.06);
 }
 
@@ -180,7 +180,7 @@ body {
   font-size: 0.85rem;
 }
 .VPSidebarItem.is-active > .item .text {
-  color: var(--hpcsim-accent);
+  color: var(--n_body_sim_pro-accent);
 }
 
 /* Home-ish hero on index is replaced by a spec sheet; keep containers quiet */
@@ -191,12 +191,12 @@ body {
 
 /* Keep links cold: no hover glow, just an underline shift */
 .vp-doc a {
-  color: var(--hpcsim-accent);
+  color: var(--n_body_sim_pro-accent);
   text-decoration: none;
-  border-bottom: 1px solid var(--hpcsim-border-strong);
+  border-bottom: 1px solid var(--n_body_sim_pro-border-strong);
 }
 .vp-doc a:hover {
-  border-bottom-color: var(--hpcsim-accent);
+  border-bottom-color: var(--n_body_sim_pro-accent);
 }
 
 /* Scrollbars: minimal */
@@ -205,11 +205,11 @@ body {
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--hpcsim-border-strong);
+  background: var(--n_body_sim_pro-border-strong);
   border-radius: 0;
 }
 ::-webkit-scrollbar-track {
-  background: var(--hpcsim-bg);
+  background: var(--n_body_sim_pro-bg);
 }
 
 /* Selection: restrained */

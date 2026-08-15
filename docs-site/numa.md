@@ -14,9 +14,9 @@ detected node count honestly.
 
 | Facility | API | Platform |
 |----------|-----|----------|
-| Topology detection | `hpcsim_numa_detect` | Windows `GetNuma*`, Linux sysfs |
-| Thread affinity | `hpcsim_thread_affinity_pin` / `apply_policy` | `SetThreadAffinityMask`, `sched_setaffinity` |
-| First-touch | `hpcsim_memory_first_touch` | touches one double per page |
+| Topology detection | `n_body_sim_pro_numa_detect` | Windows `GetNuma*`, Linux sysfs |
+| Thread affinity | `n_body_sim_pro_thread_affinity_pin` / `apply_policy` | `SetThreadAffinityMask`, `sched_setaffinity` |
+| First-touch | `n_body_sim_pro_memory_first_touch` | touches one double per page |
 
 ### First-touch
 

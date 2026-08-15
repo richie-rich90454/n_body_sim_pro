@@ -15,7 +15,7 @@ MSVC is secondary support.
 |-----------|---------|-------|
 | CMake | 3.28 | presets require it |
 | Ninja | any | recommended generator |
-| C compiler | C17 | GCC ≥ 13 or Clang ≥ 16 recommended |
+| C compiler | C17 | GCC 鈮?13 or Clang 鈮?16 recommended |
 | C++ compiler | C++20 | matching the C compiler |
 | OpenMP | supported | threaded kernels; degrades to serial if absent |
 
@@ -100,22 +100,22 @@ prefix path. Adjust the `CMAKE_C_COMPILER`, `CMAKE_CXX_COMPILER`, and
 
 | Option | Default | Meaning |
 |--------|---------|---------|
-| `HPCSIM_ENABLE_OPENMP` | ON | link OpenMP and compile parallel kernels |
-| `HPCSIM_ENABLE_MPI` | ON | detect and link MPI when available |
-| `HPCSIM_ENABLE_DEVELOPER_MODE` | ON | allocation tracking + developer UI |
-| `HPCSIM_BUILD_TESTS` | ON | build the CTest suite |
-| `HPCSIM_BUILD_BENCHMARKS` | ON | build the benchmark executable |
-| `HPCSIM_BUILD_APPLICATION` | ON | build the SDL3 application |
-| `HPCSIM_ENABLE_SANITIZERS` | OFF | compile with ASan + UBSan |
-| `HPCSIM_ENABLE_LTO` | OFF | interprocedural optimization in Release |
+| `N_BODY_SIM_PRO_ENABLE_OPENMP` | ON | link OpenMP and compile parallel kernels |
+| `N_BODY_SIM_PRO_ENABLE_MPI` | ON | detect and link MPI when available |
+| `N_BODY_SIM_PRO_ENABLE_DEVELOPER_MODE` | ON | allocation tracking + developer UI |
+| `N_BODY_SIM_PRO_BUILD_TESTS` | ON | build the CTest suite |
+| `N_BODY_SIM_PRO_BUILD_BENCHMARKS` | ON | build the benchmark executable |
+| `N_BODY_SIM_PRO_BUILD_APPLICATION` | ON | build the SDL3 application |
+| `N_BODY_SIM_PRO_ENABLE_SANITIZERS` | OFF | compile with ASan + UBSan |
+| `N_BODY_SIM_PRO_ENABLE_LTO` | OFF | interprocedural optimization in Release |
 
 ```bash
-cmake -S . -B build -DHPCSIM_ENABLE_MPI=OFF   # skip MPI entirely
+cmake -S . -B build -DN_BODY_SIM_PRO_ENABLE_MPI=OFF   # skip MPI entirely
 ```
 
 ### Warning and sanitizer hygiene
 
-Every HPCSim target is compiled with an aggressive warning set (`-Wall
+Every N-Body Sim Pro target is compiled with an aggressive warning set (`-Wall
 -Wextra -Wpedantic -Wconversion -Wshadow ...`) applied per-target, so
 third-party libraries are not drowned in them. The build aims for zero
 warnings. The `sanitizer` preset links AddressSanitizer and
@@ -127,7 +127,7 @@ cmake -S . -B build/asan \
   -DCMAKE_C_COMPILER=C:/msys64/clang64/bin/clang.exe \
   -DCMAKE_CXX_COMPILER=C:/msys64/clang64/bin/clang++.exe \
   -DCMAKE_PREFIX_PATH=C:/msys64/clang64 \
-  -DHPCSIM_ENABLE_SANITIZERS=ON -DHPCSIM_BUILD_APPLICATION=OFF
+  -DN_BODY_SIM_PRO_ENABLE_SANITIZERS=ON -DN_BODY_SIM_PRO_BUILD_APPLICATION=OFF
 cmake --build build/asan
 ctest --test-dir build/asan
 ```
@@ -143,8 +143,8 @@ ctest --test-dir build/release --output-on-failure
 
 The suite covers allocator and particle-system units, gravity and
 diagnostics numerics, preset determinism, the two-body regression, checkpoint
-round-trips, OpenMP/SIMD/Barnes-Hut equivalence, NUMA behavior, and — when
-MPI is present — a 2-rank distributed equivalence test launched through
+round-trips, OpenMP/SIMD/Barnes-Hut equivalence, NUMA behavior, and 鈥?when
+MPI is present 鈥?a 2-rank distributed equivalence test launched through
 `mpiexec`.
 
 ## Launching the interactive application
@@ -153,7 +153,7 @@ MPI is present — a 2-rank distributed equivalence test launched through
 ./build/release/bin/n_body_sim_pro
 ```
 
-Expect a window titled **HPCSim — CPU N-Body Simulation Engine** on a
+Expect a window titled **N-Body Sim Pro 鈥?CPU N-Body Simulation Engine** on a
 near-black background. The default scene is a **two-body orbit** with motion
 trails. Camera controls:
 
@@ -171,7 +171,7 @@ measured timings; **Memory** shows live allocations by category; the
 
 ::: warning
 With **All-pairs** selected, particle counts above ~64k run slowly by design
-(O(N²)). Select **Barnes-Hut** for large systems.
+(O(N虏)). Select **Barnes-Hut** for large systems.
 :::
 
 ## Running headless
@@ -198,7 +198,7 @@ See [Command Line Reference](/cli) for the full flag set.
 
 | Path | Contents |
 |------|----------|
-| `include/hpcsim/` | public C API headers |
+| `include/n_body_sim_pro/` | public C API headers |
 | `src/c/` | C17 engine (core, physics, barnes_hut, memory, simd, threading, mpi, ...) |
 | `src/cpp/` | C++20 application layer |
 | `tests/` | unit, numerical, regression, integration suites |

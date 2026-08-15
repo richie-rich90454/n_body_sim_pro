@@ -2,7 +2,7 @@ import { defineConfig } from 'vitepress'
 import markdownItKatex from 'markdown-it-katex'
 
 export default defineConfig({
-  title: 'HPCSim',
+  title: 'N-Body Sim Pro',
   description: 'A native CPU HPC simulation and visualization engine for large-scale gravitational N-body systems',
   lang: 'en-US',
   cleanUrls: true,
