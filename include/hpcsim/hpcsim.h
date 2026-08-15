@@ -12,6 +12,8 @@
 #include "hpcsim/core/status.h"
 #include "hpcsim/core/vector.h"
 #include "hpcsim/diagnostics/numerics.h"
+#include "hpcsim/generation/presets.h"
+#include "hpcsim/generation/random.h"
 #include "hpcsim/memory/allocator.h"
 #include "hpcsim/physics/gravity.h"
 #include "hpcsim/physics/integrator.h"
