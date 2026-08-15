@@ -41,10 +41,16 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 # ---------------------------------------------------------------------------
-# Aggressive compiler warnings (Clang and GCC; MSVC is secondary support)
+# Aggressive compiler warnings for HPCSim code.
+#
+# Applied per-target (not globally) so third-party libraries such as Dear
+# ImGui are not compiled with HPCSim's strict flag set.
 # ---------------------------------------------------------------------------
-if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
-    foreach(flag
+function(hpcsim_apply_warnings target)
+    if(NOT CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
+        return()
+    endif()
+    target_compile_options(${target} PRIVATE
         -Wall
         -Wextra
         -Wpedantic
@@ -52,22 +58,18 @@ if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
         -Wshadow
         -Wcast-qual
         -Wwrite-strings)
-        add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:${flag}>)
-    endforeach()
-    foreach(flag
-        -Wstrict-prototypes
-        -Wmissing-prototypes
-        -Wold-style-definition
-        -Wvla
-        -Wdouble-promotion)
-        add_compile_options($<$<COMPILE_LANGUAGE:C>:${flag}>)
-    endforeach()
-endif()
-
-if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU" AND HPCSIM_ENABLE_SANITIZERS)
-    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
-    add_link_options(-fsanitize=address,undefined)
-endif()
+    target_compile_options(${target} PRIVATE
+        $<$<COMPILE_LANGUAGE:C>:-Wstrict-prototypes>
+        $<$<COMPILE_LANGUAGE:C>:-Wmissing-prototypes>
+        $<$<COMPILE_LANGUAGE:C>:-Wold-style-definition>
+        $<$<COMPILE_LANGUAGE:C>:-Wvla>
+        $<$<COMPILE_LANGUAGE:C>:-Wdouble-promotion>)
+    if(HPCSIM_ENABLE_SANITIZERS)
+        target_compile_options(${target} PRIVATE
+            -fsanitize=address,undefined -fno-omit-frame-pointer)
+        target_link_options(${target} PRIVATE -fsanitize=address,undefined)
+    endif()
+endfunction()
 
 if(HPCSIM_ENABLE_LTO AND CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
@@ -90,6 +92,10 @@ FetchContent_MakeAvailable(dear_imgui)
 # ---------------------------------------------------------------------------
 # Subdirectories
 # ---------------------------------------------------------------------------
+set(HPCSIM_C_LIBRARY n_body_sim_pro_c)
+set(HPCSIM_CPP_LIBRARY n_body_sim_pro_cpp)
+set(HPCSIM_EXECUTABLE n_body_sim_pro)
+
 add_subdirectory(src)
 
 if(HPCSIM_BUILD_TESTS AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tests)
