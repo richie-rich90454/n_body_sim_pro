@@ -372,3 +372,27 @@ HPCSIM_PARTICLE_SYSTEM_ACCESSOR(, accelerations_z)
 HPCSIM_PARTICLE_SYSTEM_ACCESSOR(, masses)
 
 #undef HPCSIM_PARTICLE_SYSTEM_ACCESSOR
+
+HpcsimStatus hpcsim_particle_system_view(const HpcsimParticleSystem* particle_system,
+                                         HpcsimParticleSystemView* view, HpcsimError* error) {
+    if (require_system(particle_system, error) != HPCSIM_STATUS_OK) {
+        return HPCSIM_STATUS_INVALID_ARGUMENT;
+    }
+    if (view == NULL) {
+        hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
+                         "output view is null");
+        return HPCSIM_STATUS_INVALID_ARGUMENT;
+    }
+    view->particle_count = particle_system->particle_count;
+    view->positions_x = particle_system->positions_x;
+    view->positions_y = particle_system->positions_y;
+    view->positions_z = particle_system->positions_z;
+    view->velocities_x = particle_system->velocities_x;
+    view->velocities_y = particle_system->velocities_y;
+    view->velocities_z = particle_system->velocities_z;
+    view->accelerations_x = particle_system->accelerations_x;
+    view->accelerations_y = particle_system->accelerations_y;
+    view->accelerations_z = particle_system->accelerations_z;
+    view->masses = particle_system->masses;
+    return HPCSIM_STATUS_OK;
+}
