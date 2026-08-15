@@ -9,6 +9,7 @@
  */
 
 #include "hpcsim/barnes_hut/barnes_hut.h"
+#include "hpcsim/checkpoint/checkpoint.h"
 #include "hpcsim/core/particle_system.h"
 #include "hpcsim/core/status.h"
 #include "hpcsim/core/vector.h"
