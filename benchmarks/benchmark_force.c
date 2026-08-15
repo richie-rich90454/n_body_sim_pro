@@ -1,3 +1,4 @@
+#include "hpcsim/barnes_hut/barnes_hut.h"
 #include "hpcsim/generation/presets.h"
 #include "hpcsim/physics/gravity.h"
 #include "hpcsim/threading/threading.h"
@@ -31,6 +32,7 @@ typedef struct BenchmarkOptions {
     int steps;
     const char* threads_list;
     const char* algorithm;
+    double theta;
 } BenchmarkOptions;
 
 static double wall_time_seconds(void) {
@@ -42,7 +44,7 @@ static double wall_time_seconds(void) {
 static void print_usage(const char* program_name) {
     fprintf(stderr,
             "Usage: %s --particles N --steps S [--threads T1,T2,..] [--algorithm "
-            "reference|openmp|avx2|openmp_avx2]\n",
+            "reference|openmp|avx2|openmp_avx2|barnes_hut] [--theta T]\n",
             program_name);
 }
 
@@ -52,6 +54,7 @@ static int parse_arguments(int argc, char** argv, BenchmarkOptions* options) {
     options->steps = 5;
     options->threads_list = "1";
     options->algorithm = "openmp";
+    options->theta = 0.7;
 
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "--particles") == 0 && i + 1 < argc) {
@@ -62,6 +65,8 @@ static int parse_arguments(int argc, char** argv, BenchmarkOptions* options) {
             options->threads_list = argv[++i];
         } else if (strcmp(argv[i], "--algorithm") == 0 && i + 1 < argc) {
             options->algorithm = argv[++i];
+        } else if (strcmp(argv[i], "--theta") == 0 && i + 1 < argc) {
+            options->theta = atof(argv[++i]);
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             print_usage(argv[0]);
             exit(0);
@@ -76,27 +81,40 @@ static int parse_arguments(int argc, char** argv, BenchmarkOptions* options) {
 
 static double measure_force_evaluation(const HpcsimGravity* gravity,
                                        HpcsimParticleSystemView* view, int steps,
-                                       const char* algorithm) {
+                                       const char* algorithm, double theta) {
     HpcsimError error;
     hpcsim_error_clear(&error);
+    HpcsimBarnesHutTree* tree = NULL;
+    if (strcmp(algorithm, "barnes_hut") == 0) {
+        tree = hpcsim_barnes_hut_tree_create(&error);
+        if (tree == NULL) {
+            fprintf(stderr, "failed to create Barnes-Hut tree\n");
+            return -1.0;
+        }
+        hpcsim_barnes_hut_tree_set_theta(tree, theta);
+    }
     const double start = wall_time_seconds();
     for (int step = 0; step < steps; ++step) {
         HpcsimStatus status = HPCSIM_STATUS_INVALID_ARGUMENT;
         if (strcmp(algorithm, "reference") == 0) {
-            status = hpcsim_gravity_compute_acceleration_reference(view, gravity, &error);
+            status = hpcsim_gravity_compute_acceleration_reference(view, gravity, NULL, &error);
         } else if (strcmp(algorithm, "openmp") == 0) {
-            status = hpcsim_gravity_compute_acceleration_openmp(view, gravity, &error);
+            status = hpcsim_gravity_compute_acceleration_openmp(view, gravity, NULL, &error);
         } else if (strcmp(algorithm, "avx2") == 0) {
-            status = hpcsim_gravity_compute_acceleration_avx2(view, gravity, &error);
+            status = hpcsim_gravity_compute_acceleration_avx2(view, gravity, NULL, &error);
         } else if (strcmp(algorithm, "openmp_avx2") == 0) {
-            status = hpcsim_gravity_compute_acceleration_openmp_avx2(view, gravity, &error);
+            status = hpcsim_gravity_compute_acceleration_openmp_avx2(view, gravity, NULL, &error);
+        } else if (strcmp(algorithm, "barnes_hut") == 0) {
+            status = hpcsim_barnes_hut_compute_acceleration(view, gravity, tree, &error);
         }
         if (status != HPCSIM_STATUS_OK) {
             fprintf(stderr, "force evaluation failed: %s\n", hpcsim_status_string(status));
+            hpcsim_barnes_hut_tree_destroy(tree);
             return -1.0;
         }
     }
     const double elapsed = wall_time_seconds() - start;
+    hpcsim_barnes_hut_tree_destroy(tree);
     return elapsed / (double)steps;
 }
 
@@ -155,8 +173,7 @@ int main(int argc, char** argv) {
         }
         const int active_threads = uses_threads ? hpcsim_threading_thread_count() : 1;
 
-        const double seconds_per_evaluation = measure_force_evaluation(
-            &gravity, &view, options.steps, options.algorithm);
+        const double seconds_per_evaluation = measure_force_evaluation(&gravity, &view, options.steps, options.algorithm, options.theta);
         if (seconds_per_evaluation < 0.0) {
             hpcsim_particle_system_destroy(particle_system);
             return 1;
