@@ -36,6 +36,15 @@ void print_hardware() {
     std::printf("Selected backend : %s\n",
                 hpcsim_simd_backend_string(
                     hpcsim_simd_best_available_backend(&cpu)));
+    HpcsimNumaTopology topology;
+    if (hpcsim_numa_detect(&topology) == 0) {
+        std::printf("NUMA            : %d node%s\n", topology.node_count,
+                    topology.node_count == 1 ? "" : "s");
+        hpcsim_numa_topology_print(&topology);
+        hpcsim_numa_topology_destroy(&topology);
+    } else {
+        std::printf("NUMA            : unavailable\n");
+    }
 }
 
 void print_usage(const char* program_name) {
