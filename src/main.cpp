@@ -1,7 +1,7 @@
 #include "application/Application.hpp"
 #include "benchmark/HeadlessRunner.hpp"
 
-#include <hpcsim/hpcsim.h>
+#include <n_body_sim_pro/n_body_sim_pro.h>
 
 #include <cstdio>
 #include <cstdlib>
@@ -12,8 +12,8 @@
 namespace {
 
 void print_hardware() {
-    const HpcsimCpuFeatures cpu = hpcsim_cpu_detect_features();
-    std::printf("CPU            : %s\n", hpcsim_cpu_brand_string());
+    const NBodySimProCpuFeatures cpu = n_body_sim_pro_cpu_detect_features();
+    std::printf("CPU            : %s\n", n_body_sim_pro_cpu_brand_string());
     std::printf("Architecture   : %s\n",
 #if defined(__x86_64__) || defined(_M_X64)
                 "x86-64"
@@ -24,8 +24,8 @@ void print_hardware() {
 #endif
     );
     std::printf("OpenMP         : %s (%d threads available)\n",
-                hpcsim_threading_openmp_available() ? "enabled" : "unavailable",
-                hpcsim_threading_available_thread_count());
+                n_body_sim_pro_threading_openmp_available() ? "enabled" : "unavailable",
+                n_body_sim_pro_threading_available_thread_count());
     std::printf("SIMD           :\n");
     std::printf("  SSE2         : %s\n", cpu.has_sse2 ? "available" : "unavailable");
     std::printf("  AVX2         : %s\n", cpu.has_avx2 ? "available" : "unavailable");
@@ -34,21 +34,21 @@ void print_hardware() {
                 cpu.has_avx512_foundation ? "available" : "unavailable");
     std::printf("  NEON         : %s\n", cpu.has_neon ? "available" : "unavailable");
     std::printf("Selected backend : %s\n",
-                hpcsim_simd_backend_string(
-                    hpcsim_simd_best_available_backend(&cpu)));
-    HpcsimNumaTopology topology;
-    if (hpcsim_numa_detect(&topology) == 0) {
+                n_body_sim_pro_simd_backend_string(
+                    n_body_sim_pro_simd_best_available_backend(&cpu)));
+    NBodySimProNumaTopology topology;
+    if (n_body_sim_pro_numa_detect(&topology) == 0) {
         std::printf("NUMA            : %d node%s\n", topology.node_count,
                     topology.node_count == 1 ? "" : "s");
-        hpcsim_numa_topology_print(&topology);
-        hpcsim_numa_topology_destroy(&topology);
+        n_body_sim_pro_numa_topology_print(&topology);
+        n_body_sim_pro_numa_topology_destroy(&topology);
     } else {
         std::printf("NUMA            : unavailable\n");
     }
 }
 
 void print_usage(const char* program_name) {
-    std::printf("HPCSim - CPU N-Body Simulation Engine\n");
+    std::printf("N-Body Sim Pro - CPU N-Body Simulation Engine\n");
     std::printf("Usage:\n");
     std::printf("  %s                    launch the interactive application\n", program_name);
     std::printf("  %s hardware           print detected CPU/SIMD/OpenMP information\n",
@@ -81,7 +81,7 @@ bool parse_unsigned(const char* text, unsigned long long* value) {
 }
 
 int run_benchmark_command(int argc, char** argv) {
-    hpcsim::benchmark::HeadlessOptions options;
+    n_body_sim_pro::benchmark::HeadlessOptions options;
     bool barnes_hut_override = false;
 
     for (int i = 2; i < argc; ++i) {
@@ -138,10 +138,10 @@ int run_benchmark_command(int argc, char** argv) {
                 return 1;
             }
             bool found = false;
-            for (int preset = 0; preset < HPCSIM_PRESET_COUNT; ++preset) {
-                if (std::strcmp(value, hpcsim_preset_string((HpcsimSimulationPreset)preset)) ==
+            for (int preset = 0; preset < N_BODY_SIM_PRO_PRESET_COUNT; ++preset) {
+                if (std::strcmp(value, n_body_sim_pro_preset_string((NBodySimProSimulationPreset)preset)) ==
                     0) {
-                    options.preset = (HpcsimSimulationPreset)preset;
+                    options.preset = (NBodySimProSimulationPreset)preset;
                     found = true;
                     break;
                 }
@@ -160,10 +160,10 @@ int run_benchmark_command(int argc, char** argv) {
         options.barnes_hut = options.particle_count > 20000;
     }
 
-    hpcsim::benchmark::HeadlessReport report;
-    const int status = hpcsim::benchmark::run_headless(options, report);
+    n_body_sim_pro::benchmark::HeadlessReport report;
+    const int status = n_body_sim_pro::benchmark::run_headless(options, report);
     if (status == 0) {
-        hpcsim::benchmark::print_report(options, report);
+        n_body_sim_pro::benchmark::print_report(options, report);
     }
     return status;
 }
@@ -198,63 +198,63 @@ int run_distributed_command(int argc, char** argv) {
         }
     }
 
-    HpcsimMpiRuntime runtime;
-    if (hpcsim_mpi_initialize(&argc, &argv, &runtime) != 0 || !runtime.available) {
+    NBodySimProMpiRuntime runtime;
+    if (n_body_sim_pro_mpi_initialize(&argc, &argv, &runtime) != 0 || !runtime.available) {
         std::fprintf(stderr, "distributed: not running under mpiexec (launch with "
                              "mpiexec -n P %s distributed ...)\n",
                      argv[0]);
         return 1;
     }
     if (runtime.comm_size < 1) {
-        hpcsim_mpi_finalize();
+        n_body_sim_pro_mpi_finalize();
         return 1;
     }
 
-    HpcsimError error;
-    hpcsim_error_clear(&error);
+    NBodySimProError error;
+    n_body_sim_pro_error_clear(&error);
     const std::size_t local_count = particle_count / (std::size_t)runtime.comm_size;
 
-    HpcsimParticleSystem* local = hpcsim_particle_system_create(local_count);
+    NBodySimProParticleSystem* local = n_body_sim_pro_particle_system_create(local_count);
     if (local == NULL) {
         std::fprintf(stderr, "distributed: failed to allocate local particles\n");
-        hpcsim_mpi_finalize();
+        n_body_sim_pro_mpi_finalize();
         return 1;
     }
-    HpcsimPresetParameters parameters = {local_count,
+    NBodySimProPresetParameters parameters = {local_count,
                                          seed + 0x9E3779B9u * (std::uint64_t)runtime.rank};
-    if (hpcsim_preset_generate_parallel(local, HPCSIM_PRESET_RANDOM_CLOUD, &parameters,
-                                        &error) != HPCSIM_STATUS_OK) {
+    if (n_body_sim_pro_preset_generate_parallel(local, N_BODY_SIM_PRO_PRESET_RANDOM_CLOUD, &parameters,
+                                        &error) != N_BODY_SIM_PRO_STATUS_OK) {
         std::fprintf(stderr, "distributed: preset generation failed\n");
-        hpcsim_particle_system_destroy(local);
-        hpcsim_mpi_finalize();
+        n_body_sim_pro_particle_system_destroy(local);
+        n_body_sim_pro_mpi_finalize();
         return 1;
     }
 
-    HpcsimGravity gravity;
-    hpcsim_gravity_init(&gravity, 1.0, 0.02);
-    HpcsimDistributedSimulation* simulation = hpcsim_distributed_create(&runtime, &error);
+    NBodySimProGravity gravity;
+    n_body_sim_pro_gravity_init(&gravity, 1.0, 0.02);
+    NBodySimProDistributedSimulation* simulation = n_body_sim_pro_distributed_create(&runtime, &error);
     if (simulation == NULL) {
-        hpcsim_particle_system_destroy(local);
-        hpcsim_mpi_finalize();
+        n_body_sim_pro_particle_system_destroy(local);
+        n_body_sim_pro_mpi_finalize();
         return 1;
     }
-    hpcsim_distributed_set_theta(simulation, theta);
+    n_body_sim_pro_distributed_set_theta(simulation, theta);
 
-    HpcsimParticleSystemView view;
-    hpcsim_particle_system_view(local, &view, &error);
+    NBodySimProParticleSystemView view;
+    n_body_sim_pro_particle_system_view(local, &view, &error);
 
-    const double t0 = hpcsim_mpi_wall_time();
+    const double t0 = n_body_sim_pro_mpi_wall_time();
     for (int step = 0; step < steps; ++step) {
-        if (hpcsim_distributed_compute_acceleration(&view, &gravity, simulation, &error) !=
-            HPCSIM_STATUS_OK) {
+        if (n_body_sim_pro_distributed_compute_acceleration(&view, &gravity, simulation, &error) !=
+            N_BODY_SIM_PRO_STATUS_OK) {
             std::fprintf(stderr, "distributed: force evaluation failed\n");
             break;
         }
     }
-    const double total = hpcsim_mpi_wall_time() - t0;
+    const double total = n_body_sim_pro_mpi_wall_time() - t0;
 
-    HpcsimDistributedStats stats;
-    hpcsim_distributed_stats(simulation, &stats);
+    NBodySimProDistributedStats stats;
+    n_body_sim_pro_distributed_stats(simulation, &stats);
     std::printf("Rank %d: particles=%zu remote_cells=%zu essential=%zu levels=%d "
                 "compute=%.2f%% communication=%.2f%% avg_step=%.3f ms\n",
                 stats.rank, stats.local_particles, stats.remote_cells,
@@ -263,9 +263,9 @@ int run_distributed_command(int argc, char** argv) {
                 total > 0.0 ? 100.0 * stats.communication_time_seconds / total : 0.0,
                 1000.0 * total / (double)steps);
 
-    hpcsim_distributed_destroy(simulation);
-    hpcsim_particle_system_destroy(local);
-    hpcsim_mpi_finalize();
+    n_body_sim_pro_distributed_destroy(simulation);
+    n_body_sim_pro_particle_system_destroy(local);
+    n_body_sim_pro_mpi_finalize();
     return 0;
 }
 
@@ -298,8 +298,8 @@ int main(int argc, char** argv) {
                 return 1;
             }
         }
-        hpcsim::benchmark::HeadlessReport report;
-        const int status = hpcsim::benchmark::resume_checkpoint(argv[2], steps, threads,
+        n_body_sim_pro::benchmark::HeadlessReport report;
+        const int status = n_body_sim_pro::benchmark::resume_checkpoint(argv[2], steps, threads,
                                                                 report);
         if (status == 0) {
             std::printf("Resumed %zu steps from %s\n", (size_t)steps, argv[2]);
@@ -317,7 +317,7 @@ int main(int argc, char** argv) {
         const char* path = argv[2];
         std::size_t particle_count = 65536;
         std::uint64_t seed = 42;
-        HpcsimSimulationPreset preset = HPCSIM_PRESET_GALAXY_COLLISION;
+        NBodySimProSimulationPreset preset = N_BODY_SIM_PRO_PRESET_GALAXY_COLLISION;
         for (int i = 3; i < argc; ++i) {
             if (std::strcmp(argv[i], "--particles") == 0 && i + 1 < argc) {
                 particle_count = (std::size_t)std::strtoull(argv[++i], nullptr, 10);
@@ -326,10 +326,10 @@ int main(int argc, char** argv) {
             } else if (std::strcmp(argv[i], "--preset") == 0 && i + 1 < argc) {
                 const char* value = argv[++i];
                 bool found = false;
-                for (int p = 0; p < HPCSIM_PRESET_COUNT; ++p) {
+                for (int p = 0; p < N_BODY_SIM_PRO_PRESET_COUNT; ++p) {
                     if (std::strcmp(value,
-                                    hpcsim_preset_string((HpcsimSimulationPreset)p)) == 0) {
-                        preset = (HpcsimSimulationPreset)p;
+                                    n_body_sim_pro_preset_string((NBodySimProSimulationPreset)p)) == 0) {
+                        preset = (NBodySimProSimulationPreset)p;
                         found = true;
                         break;
                     }
@@ -344,7 +344,7 @@ int main(int argc, char** argv) {
             }
         }
 
-        hpcsim::SimulationController simulation;
+        n_body_sim_pro::SimulationController simulation;
         try {
             simulation.apply_preset(preset, particle_count, seed);
             simulation.save_checkpoint(path);
@@ -359,10 +359,10 @@ int main(int argc, char** argv) {
         print_usage(argv[0]);
         return 0;
     }
-        hpcsim::application::Application application;
+        n_body_sim_pro::application::Application application;
         return application.run();
     } catch (const std::exception& error) {
-        std::fprintf(stderr, "HPCSim: fatal error: %s\n", error.what());
+        std::fprintf(stderr, "N-Body Sim Pro: fatal error: %s\n", error.what());
         return 1;
     }
 }
