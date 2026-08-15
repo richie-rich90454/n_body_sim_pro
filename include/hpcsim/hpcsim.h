@@ -8,6 +8,7 @@
  * it can be wrapped by the C++ application layer or consumed directly from C.
  */
 
+#include "hpcsim/barnes_hut/barnes_hut.h"
 #include "hpcsim/core/particle_system.h"
 #include "hpcsim/core/status.h"
 #include "hpcsim/core/vector.h"
