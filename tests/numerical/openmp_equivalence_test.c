@@ -45,14 +45,14 @@ static void test_openmp_matches_reference(void) {
     double reference[3 * particle_count];
     double parallel[3 * particle_count];
 
-    hpcsim_gravity_compute_acceleration_reference(&view, &gravity, &error);
+    hpcsim_gravity_compute_acceleration_reference(&view, &gravity, NULL, &error);
     for (size_t i = 0; i < particle_count; ++i) {
         reference[3 * i + 0] = view.accelerations_x[i];
         reference[3 * i + 1] = view.accelerations_y[i];
         reference[3 * i + 2] = view.accelerations_z[i];
     }
 
-    hpcsim_gravity_compute_acceleration_openmp(&view, &gravity, &error);
+    hpcsim_gravity_compute_acceleration_openmp(&view, &gravity, NULL, &error);
     for (size_t i = 0; i < particle_count; ++i) {
         parallel[3 * i + 0] = view.accelerations_x[i];
         parallel[3 * i + 1] = view.accelerations_y[i];
