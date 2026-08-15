@@ -154,16 +154,23 @@ C++ application layer          C17 HPC engine
   Camera                         Barnes-Hut octree (contiguous nodes)
   UserInterface (Dear ImGui)     Numerical diagnostics
   BenchmarkManager               Allocation layer + tracker
-  Instrumentation / Logging      Morton reordering, radix sort
-                                SIMD (scalar/SSE2/AVX2/AVX-512/NEON)
-                                Threading (OpenMP)
+  Logging                        Morton reordering, radix sort
+  Distributed runner             SIMD (scalar/SSE2/AVX2/AVX-512/NEON)
+                                 Threading + NUMA (OpenMP)
+                                 MPI essential-tree exchange
 ```
 
 The C engine exposes a plain C ABI (`include/hpcsim/hpcsim.h`); the C++
-layer wraps it in RAII. The numerical kernels are data-oriented and
-procedural; object-oriented structure lives in the application layer.
+layer wraps it in RAII. Physics is CPU-only; OpenGL is strictly
+visualization.
 
-Why these choices exist is documented in [`docs/`](docs/):
+## Documentation
+
+Full technical documentation (architecture, physics, performance with
+measured results, SIMD, NUMA, MPI, CLI reference) is published as a
+[VitePress site](https://github.com/anomalyco/opencode) built from
+[`docs-site/`](docs-site/). The in-repo rationale lives in
+[`docs/`](docs/).
 
 - [`docs/architecture/architecture.md`](docs/architecture/architecture.md)
   — C/C++ boundary, memory model, pipeline, SIMD dispatch, instrumentation
