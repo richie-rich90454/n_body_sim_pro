@@ -5,6 +5,7 @@ add_library(${HPCSIM_C_LIBRARY} STATIC
     core/particle_system.c
     memory/allocator.c
     memory/allocation_tracker.c
+    memory/memory_estimate.c
     physics/gravity.c
     physics/gravity_openmp.c
     physics/integrator.c
