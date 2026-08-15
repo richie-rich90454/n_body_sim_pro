@@ -1,3 +1,8 @@
+---
+title: Architecture
+description: The why of every major decision — the C/C++ boundary, SoA particle storage, the Barnes-Hut octree, SIMD dispatch, OpenMP, NUMA, and MPI.
+---
+
 # Architecture
 
 This page documents the *why* of every major decision, not just the *what*.
@@ -92,7 +97,7 @@ the estimate is honest about what will be allocated.
 
 ## Reference first
 
-`n_body_sim_pro_gravity_compute_acceleration_reference` is the deliberate O(N虏)
+`n_body_sim_pro_gravity_compute_acceleration_reference` is the deliberate O(N²)
 single-threaded scalar correctness authority. It is never deleted and never
 "fixed up" to be faster.
 
@@ -105,11 +110,11 @@ The kernels form a strict validation chain:
 
 ```mermaid
 flowchart LR
-    REF["Reference O(N虏)"] --> OMP["OpenMP (bit-identical)"]
-    REF --> AVX2["AVX2 (鈮?e-10)"]
-    REF --> BH["Barnes-Hut (胃-bound)"]
-    BH --> BHAVX2["SIMD Barnes-Hut (鈮?e-9)"]
-    BH --> DIST["MPI distributed (胃-bound)"]
+    REF["Reference O(N²)"] --> OMP["OpenMP (bit-identical)"]
+    REF --> AVX2["AVX2 (≤ 1e-10)"]
+    REF --> BH["Barnes-Hut (θ-bound)"]
+    BH --> BHAVX2["SIMD Barnes-Hut (≤ 1e-9)"]
+    BH --> DIST["MPI distributed (θ-bound)"]
 ```
 
 ## Barnes-Hut octree
@@ -137,7 +142,7 @@ both the build and the force traversal touch nodes sequentially instead of
 at random, converting L3-cache misses into hits.
 
 **Measured** (1M particles, 16 threads): step time dropped from **3.25 s** to
-**1.39 s** 鈥?a 2.3脳 improvement with no change to the physics.
+**1.39 s** —a 2.3× improvement with no change to the physics.
 
 ### Opening criterion
 
@@ -155,8 +160,8 @@ $$
 s^2 < \theta^2 d^2
 $$
 
-The essential property 鈥?every cell a traversal descends into has its
-children present 鈥?is guaranteed because the same distance-to-COM criterion
+The essential property —every cell a traversal descends into has its
+children present —is guaranteed because the same distance-to-COM criterion
 drives both the traversal and (in the distributed case) the essential-tree
 exchange.
 
@@ -168,8 +173,8 @@ kernel exists**. The selected backend is what is actually used and what the
 UI reports.
 
 ```
-AVX2 + FMA available  鈫? AVX2 kernel
-otherwise             鈫? scalar kernel (until other kernels exist)
+AVX2 + FMA available  → AVX2 kernel
+otherwise             → scalar kernel (until other kernels exist)
 ```
 
 A backend is only selected when a real implementation exists. AVX-512 and
@@ -181,7 +186,7 @@ their kernels do not exist yet. The UI distinguishes "detected ISA" from
 
 The force kernels parallelize the outer particle loop with a static
 schedule. The all-pairs OpenMP kernel keeps each particle's inner sum in the
-same order, so it is **bit-identical** to the reference on a given machine 鈥?parallelism with zero numerical change. The Barnes-Hut traversal is
+same order, so it is **bit-identical** to the reference on a given machine —parallelism with zero numerical change. The Barnes-Hut traversal is
 parallelized the same way over query particles; the tree is read-only during
 evaluation, so no locking is needed.
 
@@ -238,5 +243,5 @@ The engine separates instrumentation from measurement:
   values come from these real timers.
 - **Conservation diagnostics** (momentum error, center-of-mass offset,
   energy drift) computed from actual particle state. Energy drift requires
-  the O(N虏) potential sum, so it is tracked only for systems small enough
+  the O(N²) potential sum, so it is tracked only for systems small enough
   to afford it; larger systems render `N/A`.
