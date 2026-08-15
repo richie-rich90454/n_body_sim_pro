@@ -46,6 +46,9 @@ public:
     double simulation_time = 0.0;
     double timestep = 0.005;
 
+    /* Use the OpenMP-parallel force kernel when available. */
+    bool use_parallel_forces = true;
+
     HpcsimIntegratorType integrator = HPCSIM_INTEGRATOR_LEAPFROG;
 
     double gravitational_constant() const { return gravitational_constant_; }
