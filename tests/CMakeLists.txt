@@ -11,7 +11,8 @@ set(HPCSIM_TESTS
     numerical/barnes_hut_test
     generation/random_test
     generation/presets_test
-    regression/two_body_test)
+    regression/two_body_test
+    regression/checkpoint_test)
 
 foreach(test_target IN LISTS HPCSIM_TESTS)
     get_filename_component(test_name ${test_target} NAME)
