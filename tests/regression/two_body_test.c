@@ -32,14 +32,15 @@ static const double SOFTENING_LENGTH = 0.0;
 static const double BODY_MASS = 1.0;
 static const double SEPARATION = 1.0;
 static const double HALF_SEPARATION = 0.5;
-static const double ORBITAL_PERIOD = 2.0 * M_PI / sqrt(2.0);
+static const double SQRT_TWO = 1.4142135623730950488016887242097;
+static const double ORBITAL_PERIOD = 2.0 * M_PI / SQRT_TWO;
 
 static double initialize_circular_orbit(HpcsimParticleSystem* particle_system) {
     HpcsimError error;
     hpcsim_error_clear(&error);
     hpcsim_particle_system_set_particle_count(particle_system, 2, &error);
 
-    const double per_body_speed = sqrt(2.0) / 2.0;
+    const double per_body_speed = SQRT_TWO / 2.0;
     hpcsim_particle_system_set_position(particle_system, 0,
                                         (HpcsimVector3){-HALF_SEPARATION, 0.0, 0.0}, &error);
     hpcsim_particle_system_set_position(particle_system, 1,
