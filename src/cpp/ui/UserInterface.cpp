@@ -115,6 +115,29 @@ void UserInterface::draw_simulation_panel(SimulationController& simulation) {
 
     ImGui::Separator();
 
+    static int algorithm_index = 0;
+    const char* algorithm_names[] = {"All-pairs (OpenMP)", "All-pairs (single thread)",
+                                     "Barnes-Hut"};
+    if (ImGui::Combo("Algorithm", &algorithm_index, algorithm_names, 3)) {
+        simulation.barnes_hut_enabled = algorithm_index == 2;
+        simulation.use_parallel_forces = algorithm_index != 1;
+    }
+    if (simulation.barnes_hut_enabled) {
+        float theta = static_cast<float>(simulation.barnes_hut_theta);
+        if (ImGui::SliderFloat("BH theta", &theta, 0.1f, 2.0f, "%.2f")) {
+            simulation.barnes_hut_theta = theta;
+        }
+        HpcsimBarnesHutStats stats;
+        if (simulation.barnes_hut_stats(&stats)) {
+            ImGui::Text("Tree nodes       : %zu", stats.node_count);
+            ImGui::Text("Leaves           : %zu", stats.leaf_count);
+            ImGui::Text("Internal nodes   : %zu", stats.internal_node_count);
+            ImGui::Text("Max depth        : %zu", stats.maximum_depth);
+            ImGui::Text("Approximations   : %zu", stats.accepted_approximations);
+            ImGui::Text("Exact interactions: %zu", stats.exact_interactions);
+        }
+    }
+
     const char* integrator_names[] = {"Euler", "Leapfrog", "Velocity Verlet"};
     int integrator_index = static_cast<int>(simulation.integrator);
     if (ImGui::Combo("Integrator", &integrator_index, integrator_names, 3)) {
@@ -133,7 +156,6 @@ void UserInterface::draw_simulation_panel(SimulationController& simulation) {
 
     ImGui::Separator();
 
-    ImGui::Checkbox("Parallel forces (OpenMP)", &simulation.use_parallel_forces);
     if (hpcsim_threading_openmp_available()) {
         static int thread_count_index = 0;
         const int available_threads = hpcsim_threading_available_thread_count();
