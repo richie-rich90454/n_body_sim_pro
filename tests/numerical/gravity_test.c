@@ -40,7 +40,7 @@ static void test_analytic_two_body_acceleration(void) {
 
     HpcsimGravity gravity;
     hpcsim_gravity_init(&gravity, 1.0, 0.0);
-    HPCSIM_ASSERT(hpcsim_gravity_compute_acceleration_reference(&view, &gravity, &error) ==
+    HPCSIM_ASSERT(hpcsim_gravity_compute_acceleration_reference(&view, &gravity, NULL, &error) ==
                   HPCSIM_STATUS_OK);
 
     HpcsimVector3 acceleration_0;
@@ -76,7 +76,7 @@ static void test_self_force_is_excluded(void) {
     hpcsim_particle_system_view(particle_system, &view, &error);
     HpcsimGravity gravity;
     hpcsim_gravity_init(&gravity, 1.0, 0.0);
-    HPCSIM_ASSERT(hpcsim_gravity_compute_acceleration_reference(&view, &gravity, &error) ==
+    HPCSIM_ASSERT(hpcsim_gravity_compute_acceleration_reference(&view, &gravity, NULL, &error) ==
                   HPCSIM_STATUS_OK);
 
     HpcsimVector3 acceleration;
@@ -109,7 +109,7 @@ static void test_softening_bounds_force(void) {
 
     HpcsimGravity softened;
     hpcsim_gravity_init(&softened, 1.0, 1e-2);
-    HPCSIM_ASSERT(hpcsim_gravity_compute_acceleration_reference(&view, &softened, &error) ==
+    HPCSIM_ASSERT(hpcsim_gravity_compute_acceleration_reference(&view, &softened, NULL, &error) ==
                   HPCSIM_STATUS_OK);
     HpcsimVector3 acceleration;
     hpcsim_particle_system_acceleration(particle_system, 1, &acceleration, &error);
@@ -135,7 +135,7 @@ static void test_mutual_force_antisymmetry(void) {
     hpcsim_particle_system_view(particle_system, &view, &error);
     HpcsimGravity gravity;
     hpcsim_gravity_init(&gravity, 1.0, 0.3);
-    HPCSIM_ASSERT(hpcsim_gravity_compute_acceleration_reference(&view, &gravity, &error) ==
+    HPCSIM_ASSERT(hpcsim_gravity_compute_acceleration_reference(&view, &gravity, NULL, &error) ==
                   HPCSIM_STATUS_OK);
 
     HpcsimVector3 acceleration_0;
