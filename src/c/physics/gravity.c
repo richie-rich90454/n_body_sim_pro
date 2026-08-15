@@ -13,7 +13,9 @@ void hpcsim_gravity_init(HpcsimGravity* gravity, double gravitational_constant,
 }
 
 HpcsimStatus hpcsim_gravity_compute_acceleration_reference(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, HpcsimError* error) {
+    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
+    HpcsimError* error) {
+    (void)context;
     if (view == NULL || gravity == NULL) {
         hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
                          "view and gravity parameters must not be null");
