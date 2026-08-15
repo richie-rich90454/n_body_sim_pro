@@ -1,5 +1,6 @@
 import DefaultTheme from 'vitepress/theme'
 import MermaidDiagram from './components/MermaidDiagram.vue'
+import 'katex/dist/katex.min.css'
 import './custom.css'
 
 export default {
