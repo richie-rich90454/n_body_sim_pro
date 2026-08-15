@@ -1,7 +1,15 @@
+---
+title: Command Line Reference
+description: Every subcommand and option of the n_body_sim_pro executable, plus the standalone force-kernel benchmark binary.
+---
+
 # Command Line Reference
 
 The single executable `n_body_sim_pro` dispatches on its first argument.
-With no arguments it launches the interactive application.
+With no arguments it launches the interactive application. A second binary,
+`n_body_sim_pro_benchmark`, isolates single force evaluations per kernel and
+thread count (see [benchmark](#benchmark)); it is built by the `benchmark`
+CMake preset.
 
 ```
 n_body_sim_pro [command] [options]
@@ -51,16 +59,17 @@ n_body_sim_pro benchmark [--particles N] [--steps S] [--threads T]
   [--algorithm A] [--theta T] [--preset P]
 ```
 
-Measures a single force evaluation over `steps` runs and prints per-thread
-timings, speedup, and parallel efficiency, followed by a machine-readable
-JSON line.
+Runs a full headless simulation for `steps` timesteps and reports the average
+step time, the Barnes-Hut tree build and force evaluation phase timings, and
+the conservation diagnostics (energy drift and momentum error), followed by a
+machine-readable JSON line.
 
 | Option | Default | Meaning |
 |--------|---------|---------|
 | `--particles N` | 65536 | particle count |
-| `--steps S` | 100 | force evaluations to time |
-| `--threads T[,T2,..]` | `1` | OpenMP thread counts to benchmark |
-| `--algorithm A` | auto | `reference`, `openmp`, `avx2`, `openmp_avx2`, `barnes_hut`, `barnes_hut_avx2`, `barnes_hut_openmp_avx2` |
+| `--steps S` | 100 | timesteps to simulate |
+| `--threads T` | `0` (auto) | OpenMP thread count; `0` = all available |
+| `--algorithm A` | auto | `all_pairs` or `barnes_hut` |
 | `--theta T` | 0.7 | Barnes-Hut opening angle |
 | `--preset P` | galaxy_collision | see presets below |
 
@@ -75,6 +84,31 @@ The JSON output is designed for regression tracking:
  "estimated_bytes":3669944,"avg_step_ms":64.102320,"first_step_ms":68.341800,
  "energy_drift":0.000002,"momentum_error":1.069654e-06}
 ```
+
+(Example output from `--particles 16384 --algorithm barnes_hut`.)
+
+### Force-kernel microbenchmark (`n_body_sim_pro_benchmark`)
+
+The `benchmark` command above measures whole simulated steps. To isolate a
+single force evaluation per kernel and thread count, use the standalone
+force-kernel benchmark binary, `n_body_sim_pro_benchmark`:
+
+```
+n_body_sim_pro_benchmark --particles N --steps S [--threads T1,T2,..]
+  [--algorithm A] [--theta T]
+```
+
+| Option | Default | Meaning |
+|--------|---------|---------|
+| `--particles N` | 10000 | particle count |
+| `--steps S` | 5 | force evaluations to time |
+| `--threads T1,T2,..` | `1` | OpenMP thread counts to benchmark (comma-separated) |
+| `--algorithm A` | openmp | `reference`, `openmp`, `avx2`, `openmp_avx2`, `barnes_hut`, `barnes_hut_avx2`, `barnes_hut_openmp_avx2` |
+| `--theta T` | 0.7 | Barnes-Hut opening angle |
+
+It prints one `threads / ms / speedup / efficiency` row per thread count and
+finishes with a machine-readable CSV line (`threads,ms,speedup,efficiency`).
+This is the tool used to produce the tables in [Performance](/performance).
 
 ## save
 
