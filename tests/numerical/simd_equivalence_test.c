@@ -1,3 +1,4 @@
+#include "hpcsim/barnes_hut/barnes_hut.h"
 #include "hpcsim/generation/presets.h"
 #include "hpcsim/physics/gravity.h"
 #include "hpcsim/simd/backend.h"
@@ -170,11 +171,89 @@ static void test_backend_selection(void) {
     }
 }
 
+static double root_mean_square_relative_error(HpcsimParticleSystemView* view,
+                                              const double reference[3 * TEST_PARTICLE_COUNT],
+                                              size_t particle_count) {
+    double sum_error_squared = 0.0;
+    double sum_reference_squared = 0.0;
+    for (size_t i = 0; i < particle_count; ++i) {
+        const double candidate[3] = {view->accelerations_x[i], view->accelerations_y[i],
+                                     view->accelerations_z[i]};
+        for (size_t component = 0; component < 3; ++component) {
+            const double delta = candidate[component] - reference[3 * i + component];
+            sum_error_squared += delta * delta;
+            sum_reference_squared += reference[3 * i + component] *
+                                     reference[3 * i + component];
+        }
+    }
+    if (sum_reference_squared == 0.0) {
+        return 0.0;
+    }
+    return sqrt(sum_error_squared / sum_reference_squared);
+}
+
+static void test_barnes_hut_avx2_matches_scalar_barnes_hut(void) {
+    HpcsimCpuFeatures features = hpcsim_cpu_detect_features();
+    if (!features.has_avx2) {
+        HPCSIM_ASSERT(1);
+        return;
+    }
+
+    const size_t particle_count = TEST_PARTICLE_COUNT;
+    HpcsimParticleSystem* particle_system = make_random_system(particle_count, 11);
+    HPCSIM_ASSERT(particle_system != NULL);
+    if (particle_system == NULL) {
+        return;
+    }
+    HpcsimError error;
+    hpcsim_error_clear(&error);
+    HpcsimParticleSystemView view;
+    hpcsim_particle_system_view(particle_system, &view, &error);
+
+    HpcsimGravity gravity;
+    hpcsim_gravity_init(&gravity, 1.0, 0.02);
+
+    HpcsimBarnesHutTree* tree = hpcsim_barnes_hut_tree_create(&error);
+    HPCSIM_ASSERT(tree != NULL);
+    if (tree == NULL) {
+        hpcsim_particle_system_destroy(particle_system);
+        return;
+    }
+    /* The batched SIMD traversal mirrors the scalar traversal's acceptance
+     * decisions exactly, so results differ only by floating-point summation
+     * order. */
+    hpcsim_barnes_hut_tree_set_theta(tree, 0.7);
+
+    /* Scalar Barnes-Hut reference. */
+    hpcsim_barnes_hut_compute_acceleration(&view, &gravity, tree, &error);
+    double reference[3 * TEST_PARTICLE_COUNT];
+    for (size_t i = 0; i < particle_count; ++i) {
+        reference[3 * i + 0] = view.accelerations_x[i];
+        reference[3 * i + 1] = view.accelerations_y[i];
+        reference[3 * i + 2] = view.accelerations_z[i];
+    }
+
+    /* AVX2 Barnes-Hut must agree within tolerance. */
+    hpcsim_barnes_hut_compute_acceleration_avx2(&view, &gravity, tree, &error);
+    const double serial_error = root_mean_square_relative_error(&view, reference,
+                                                                particle_count);
+    HPCSIM_ASSERT(serial_error < 1.0e-9);
+
+    hpcsim_barnes_hut_compute_acceleration_openmp_avx2(&view, &gravity, tree, &error);
+    const double parallel_error = root_mean_square_relative_error(&view, reference,
+                                                                  particle_count);
+    HPCSIM_ASSERT(parallel_error < 1.0e-9);
+
+    hpcsim_barnes_hut_tree_destroy(tree);
+    hpcsim_particle_system_destroy(particle_system);
+}
+
 int main(void) {
     HPCSIM_TEST_SUITE_BEGIN();
     HPCSIM_TEST_RUN(test_avx2_matches_reference_with_softening);
     HPCSIM_TEST_RUN(test_avx2_matches_reference_without_softening);
     HPCSIM_TEST_RUN(test_openmp_avx2_matches_reference);
+    HPCSIM_TEST_RUN(test_barnes_hut_avx2_matches_scalar_barnes_hut);
     HPCSIM_TEST_RUN(test_backend_selection);
     return HPCSIM_TEST_SUITE_END();
 }
