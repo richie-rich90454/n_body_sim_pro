@@ -190,7 +190,7 @@ void Application::render_frame() {
     renderer_->upload_particles(simulation_.particle_system().view());
     renderer_->draw_particles(view, projection);
 
-    if (user_interface_.show_trails) {
+    if (user_interface_.show_trails && simulation_.preset() == HPCSIM_PRESET_TWO_BODY) {
         const auto& trails = simulation_.trails();
         renderer_->draw_line_strip(trails[0], {0.75f, 0.85f, 1.0f}, view, projection);
         renderer_->draw_line_strip(trails[1], {1.0f, 0.75f, 0.65f}, view, projection);
