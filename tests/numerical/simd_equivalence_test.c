@@ -73,14 +73,14 @@ static void test_avx2_matches_reference_with_softening(void) {
     hpcsim_gravity_init(&gravity, 1.0, 0.02);
 
     double reference[3 * TEST_PARTICLE_COUNT];
-    hpcsim_gravity_compute_acceleration_reference(&view, &gravity, &error);
+    hpcsim_gravity_compute_acceleration_reference(&view, &gravity, NULL, &error);
     for (size_t i = 0; i < particle_count; ++i) {
         reference[3 * i + 0] = view.accelerations_x[i];
         reference[3 * i + 1] = view.accelerations_y[i];
         reference[3 * i + 2] = view.accelerations_z[i];
     }
 
-    hpcsim_gravity_compute_acceleration_avx2(&view, &gravity, &error);
+    hpcsim_gravity_compute_acceleration_avx2(&view, &gravity, NULL, &error);
     const double relative_error = maximum_relative_error(&view, reference, particle_count);
     HPCSIM_ASSERT(relative_error < 1.0e-10);
     hpcsim_particle_system_destroy(particle_system);
@@ -108,14 +108,14 @@ static void test_avx2_matches_reference_without_softening(void) {
     hpcsim_gravity_init(&gravity, 1.0, 0.0);
 
     double reference[3 * TEST_PARTICLE_COUNT];
-    hpcsim_gravity_compute_acceleration_reference(&view, &gravity, &error);
+    hpcsim_gravity_compute_acceleration_reference(&view, &gravity, NULL, &error);
     for (size_t i = 0; i < particle_count; ++i) {
         reference[3 * i + 0] = view.accelerations_x[i];
         reference[3 * i + 1] = view.accelerations_y[i];
         reference[3 * i + 2] = view.accelerations_z[i];
     }
 
-    hpcsim_gravity_compute_acceleration_avx2(&view, &gravity, &error);
+    hpcsim_gravity_compute_acceleration_avx2(&view, &gravity, NULL, &error);
     const double relative_error = maximum_relative_error(&view, reference, particle_count);
     HPCSIM_ASSERT(relative_error < 1.0e-10);
 
@@ -146,14 +146,14 @@ static void test_openmp_avx2_matches_reference(void) {
     hpcsim_gravity_init(&gravity, 1.0, 0.02);
 
     double reference[3 * TEST_PARTICLE_COUNT];
-    hpcsim_gravity_compute_acceleration_reference(&view, &gravity, &error);
+    hpcsim_gravity_compute_acceleration_reference(&view, &gravity, NULL, &error);
     for (size_t i = 0; i < particle_count; ++i) {
         reference[3 * i + 0] = view.accelerations_x[i];
         reference[3 * i + 1] = view.accelerations_y[i];
         reference[3 * i + 2] = view.accelerations_z[i];
     }
 
-    hpcsim_gravity_compute_acceleration_openmp_avx2(&view, &gravity, &error);
+    hpcsim_gravity_compute_acceleration_openmp_avx2(&view, &gravity, NULL, &error);
     const double relative_error = maximum_relative_error(&view, reference, particle_count);
     HPCSIM_ASSERT(relative_error < 1.0e-10);
     hpcsim_particle_system_destroy(particle_system);
