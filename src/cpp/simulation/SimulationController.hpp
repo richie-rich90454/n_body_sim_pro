@@ -62,6 +62,9 @@ public:
     /* Use the Barnes-Hut octree approximation instead of all-pairs. */
     bool barnes_hut_enabled = false;
     double barnes_hut_theta = 0.7;
+    /* SIMD Barnes-Hut is benchmarked slower than scalar on the reference
+     * hardware (memory-bound walk); available for experimentation. */
+    bool use_simd_barnes_hut = false;
 
     /* The SIMD backend detected at construction (AVX2 or scalar). */
     HpcsimSimdBackend simd_backend() const { return simd_backend_; }
