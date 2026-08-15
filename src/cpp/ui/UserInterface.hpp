@@ -24,6 +24,11 @@ public:
 
 private:
     void draw_simulation_panel(SimulationController& simulation);
+    void draw_numerics_panel(SimulationController& simulation);
+    void draw_performance_panel(SimulationController& simulation, float frame_duration_ms,
+                                float frame_rate);
+    void draw_memory_panel();
+    void draw_developer_console();
 
     float steps_per_frame_ = 1.0f;
 };
