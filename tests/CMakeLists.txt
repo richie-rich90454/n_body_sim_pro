@@ -11,6 +11,7 @@ set(HPCSIM_TESTS
     numerical/barnes_hut_test
     generation/random_test
     generation/presets_test
+    threading/numa_test
     regression/two_body_test
     regression/checkpoint_test)
 
