@@ -69,3 +69,36 @@ if(N_BODY_SIM_PRO_ENABLE_MPI)
         endif()
     endif()
 endif()
+
+# ---------------------------------------------------------------------------
+# Windows runtime DLLs. All executables share one output directory
+# (CMAKE_RUNTIME_OUTPUT_DIRECTORY); copy the toolchain runtime, SDL3, and
+# MS-MPI beside them so the binaries run regardless of PATH (IDE launches,
+# fresh shells, mpiexec child processes).
+# ---------------------------------------------------------------------------
+if(WIN32)
+    get_filename_component(N_BODY_SIM_PRO_TOOLCHAIN_BIN ${CMAKE_C_COMPILER} DIRECTORY)
+    foreach(_dll IN ITEMS
+            libgcc_s_seh-1.dll
+            libstdc++-6.dll
+            libwinpthread-1.dll
+            libgomp-1.dll
+            libiconv-2.dll)
+        if(EXISTS ${N_BODY_SIM_PRO_TOOLCHAIN_BIN}/${_dll})
+            add_custom_command(TARGET ${N_BODY_SIM_PRO_C_LIBRARY} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    ${N_BODY_SIM_PRO_TOOLCHAIN_BIN}/${_dll}
+                    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${_dll})
+        endif()
+    endforeach()
+    add_custom_command(TARGET ${N_BODY_SIM_PRO_C_LIBRARY} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:SDL3::SDL3>
+            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/SDL3.dll)
+    if(EXISTS "$ENV{LOCALAPPDATA}/Microsoft MPI/x64/msmpi.dll")
+        add_custom_command(TARGET ${N_BODY_SIM_PRO_C_LIBRARY} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$ENV{LOCALAPPDATA}/Microsoft MPI/x64/msmpi.dll"
+                ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/msmpi.dll)
+    endif()
+endif()
