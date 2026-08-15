@@ -1,0 +1,20 @@
+{
+  "name": "hpcsim-docs",
+  "version": "1.0.0",
+  "private": true,
+  "description": "HPCSim technical documentation site (VitePress)",
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev .",
+    "build": "vitepress build .",
+    "preview": "vitepress preview ."
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "mermaid": "^11.4.1",
+    "markdown-it-katex": "^2.0.3",
+    "vitepress": "^1.6.3"
+  }
+}
