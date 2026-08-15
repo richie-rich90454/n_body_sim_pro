@@ -1,3 +1,8 @@
+---
+title: Physics & Integrators
+description: The gravity model, Plummer softening, the kernel hierarchy, integrators, presets, and conservation diagnostics.
+---
+
 # Physics
 
 ## Gravity model
