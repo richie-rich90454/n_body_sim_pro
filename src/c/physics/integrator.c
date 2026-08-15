@@ -14,8 +14,9 @@ const char* hpcsim_integrator_type_string(HpcsimIntegratorType integrator) {
 
 static HpcsimStatus advance_euler(HpcsimParticleSystemView* view,
                                   const HpcsimGravity* gravity, double timestep,
-                                  HpcsimForceFunction force_function, HpcsimError* error) {
-    HpcsimStatus status = force_function(view, gravity, error);
+                                  HpcsimForceFunction force_function,
+                                  void* force_context, HpcsimError* error) {
+    HpcsimStatus status = force_function(view, gravity, force_context, error);
     if (status != HPCSIM_STATUS_OK) {
         return status;
     }
@@ -45,7 +46,8 @@ static HpcsimStatus advance_euler(HpcsimParticleSystemView* view,
 
 static HpcsimStatus advance_leapfrog(HpcsimParticleSystemView* view,
                                      const HpcsimGravity* gravity, double timestep,
-                                     HpcsimForceFunction force_function, HpcsimError* error) {
+                                     HpcsimForceFunction force_function,
+                                     void* force_context, HpcsimError* error) {
     const size_t particle_count = view->particle_count;
     double* const positions_x = view->positions_x;
     double* const positions_y = view->positions_y;
@@ -69,7 +71,7 @@ static HpcsimStatus advance_leapfrog(HpcsimParticleSystemView* view,
         positions_z[i] += velocities_z[i] * timestep;
     }
 
-    HpcsimStatus status = force_function(view, gravity, error);
+    HpcsimStatus status = force_function(view, gravity, force_context, error);
     if (status != HPCSIM_STATUS_OK) {
         return status;
     }
@@ -85,7 +87,7 @@ static HpcsimStatus advance_leapfrog(HpcsimParticleSystemView* view,
 static HpcsimStatus advance_velocity_verlet(HpcsimParticleSystemView* view,
                                             const HpcsimGravity* gravity, double timestep,
                                             HpcsimForceFunction force_function,
-                                            HpcsimError* error) {
+                                            void* force_context, HpcsimError* error) {
     /*
      * Classic velocity Verlet updates are
      *   x' = x + v*dt + 0.5*a*dt^2
@@ -123,7 +125,7 @@ static HpcsimStatus advance_velocity_verlet(HpcsimParticleSystemView* view,
         positions_z[i] += velocities_z[i] * timestep;
     }
 
-    HpcsimStatus status = force_function(view, gravity, error);
+    HpcsimStatus status = force_function(view, gravity, force_context, error);
     if (status != HPCSIM_STATUS_OK) {
         return status;
     }
@@ -141,7 +143,7 @@ HpcsimStatus hpcsim_integrator_advance(HpcsimParticleSystemView* view,
                                        HpcsimIntegratorType integrator,
                                        double timestep,
                                        HpcsimForceFunction force_function,
-                                       HpcsimError* error) {
+                                       void* force_context, HpcsimError* error) {
     if (view == NULL || gravity == NULL || force_function == NULL) {
         hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
                          "view, gravity, and force function must not be null");
@@ -155,11 +157,14 @@ HpcsimStatus hpcsim_integrator_advance(HpcsimParticleSystemView* view,
 
     switch (integrator) {
         case HPCSIM_INTEGRATOR_EULER:
-            return advance_euler(view, gravity, timestep, force_function, error);
+            return advance_euler(view, gravity, timestep, force_function, force_context,
+                                 error);
         case HPCSIM_INTEGRATOR_LEAPFROG:
-            return advance_leapfrog(view, gravity, timestep, force_function, error);
+            return advance_leapfrog(view, gravity, timestep, force_function, force_context,
+                                    error);
         case HPCSIM_INTEGRATOR_VELOCITY_VERLET:
-            return advance_velocity_verlet(view, gravity, timestep, force_function, error);
+            return advance_velocity_verlet(view, gravity, timestep, force_function,
+                                           force_context, error);
     }
     hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
                      "unknown integrator type");
