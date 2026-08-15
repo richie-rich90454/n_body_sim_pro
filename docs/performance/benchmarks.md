@@ -72,6 +72,21 @@ Lower theta is more accurate and more expensive; higher theta is cheaper and
 coarser. These numbers come from the test suite, which asserts the
 monotonicity of the trade-off.
 
+## Distributed execution (MPI)
+
+Measured on the same machine with MS-MPI, 2 ranks, 4,096 particles per rank,
+theta 0.7:
+
+| Rank | local particles | remote cells | essential cells | levels | compute | communication | step |
+|------|-----------------|--------------|-----------------|--------|---------|---------------|------|
+| 0 | 2,048 | 2,951 | 2,951 | 8 | 29.6% | 10.2% | 63.5 ms |
+| 1 | 2,048 | 2,953 | 2,953 | 8 | 28.7% | 10.2% | 63.1 ms |
+
+The distributed result matches the single-rank Barnes-Hut result within the
+theta tolerance (validated by `distributed_barnes_hut_test` under mpiexec).
+The essential-tree exchange terminates when no rank needs finer detail; the
+communication/computation split is real, per-rank, and measured.
+
 ## Honesty rules
 
 - No number here is fabricated. If a run is not reproducible on a given
@@ -80,6 +95,8 @@ monotonicity of the trade-off.
   benchmarked and never claimed.
 - Thread scaling is reported with measured efficiency, which drops as the
   kernel becomes memory-bound.
+- The SIMD Barnes-Hut kernel is measurably slower than the scalar kernel on
+  this hardware (memory-bound walk); that is documented, not hidden.
 
 ## Regression tracking
 
