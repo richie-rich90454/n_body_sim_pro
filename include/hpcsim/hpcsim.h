@@ -17,5 +17,6 @@
 #include "hpcsim/memory/allocator.h"
 #include "hpcsim/physics/gravity.h"
 #include "hpcsim/physics/integrator.h"
+#include "hpcsim/threading/threading.h"
 
 #endif /* HPCSIM_H */
