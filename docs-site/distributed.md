@@ -1,3 +1,8 @@
+---
+title: Distributed (MPI)
+description: The local essential-tree exchange protocol, partitioning, the correctness argument, measured behavior, and platform notes.
+---
+
 # Distributed (MPI)
 
 The engine can run across MPI ranks with a **local essential tree**
@@ -15,14 +20,18 @@ sequenceDiagram
     R1->>ALL: allgather root cells
     ALL-->>R0: foreign roots
     ALL-->>R1: foreign roots
-    Note over R0: keep foreign roots;<br/>mark rejected
-    Note over R1: keep foreign roots;<br/>mark rejected
+    Note over R0: keep foreign roots
+    Note over R0: mark rejected
+    Note over R1: keep foreign roots
+    Note over R1: mark rejected
     R0->>ALL: allgather level-1 cells
     R1->>ALL: allgather level-1 cells
     ALL-->>R0: keep children of rejected parents
     ALL-->>R1: keep children of rejected parents
-    Note over R0: any rank still rejecting?<br/>allreduce
-    Note over R1: any rank still rejecting?<br/>allreduce
+    Note over R0: any rank still rejecting?
+    Note over R0: allreduce termination
+    Note over R1: any rank still rejecting?
+    Note over R1: allreduce termination
     R0-->>R1: stop when no rank rejects
     Note over R0: walk local tree + remote forest
     Note over R1: walk local tree + remote forest
