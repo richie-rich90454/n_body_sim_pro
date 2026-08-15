@@ -160,6 +160,26 @@ void SimulationController::step() {
     }
 }
 
+void SimulationController::refresh_energy_diagnostics() {
+    if (!diagnostics_.energy_available) {
+        return;
+    }
+    HpcsimParticleSystemView view = particles_.view();
+    HpcsimError error;
+    hpcsim_error_clear(&error);
+    HpcsimDiagnosticsQuantities quantities;
+    hpcsim_diagnostics_compute_global(&view, &quantities, &error);
+    double potential_energy = 0.0;
+    if (hpcsim_diagnostics_compute_potential_energy(&view, &gravity_, &potential_energy,
+                                                    &error) == HPCSIM_STATUS_OK) {
+        const double total_energy = quantities.kinetic_energy + potential_energy;
+        const double reference_energy =
+            std::fabs(initial_total_energy_) > 0.0 ? std::fabs(initial_total_energy_) : 1.0;
+        diagnostics_.energy_drift =
+            std::fabs(total_energy - initial_total_energy_) / reference_energy;
+    }
+}
+
 void SimulationController::reset_diagnostics_reference() {
     HpcsimParticleSystemView view = particles_.view();
     HpcsimError error;
