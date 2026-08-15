@@ -63,6 +63,8 @@ void print_usage(const char* program_name) {
     std::printf("                        open_cluster, globular_cluster, spiral_galaxy,\n");
     std::printf("                        elliptical_galaxy, galaxy_collision,\n");
     std::printf("                        triple_galaxy\n");
+    std::printf("  %s distributed [--particles N] [--steps S] [--theta T]\n", program_name);
+    std::printf("                        distributed run (launch with mpiexec -n P)\n");
     std::printf("  %s resume FILE [--steps S] [--threads T]\n", program_name);
     std::printf("                        continue a checkpoint headless\n");
     std::printf("  %s save FILE [--particles N] [--preset P] [--seed S]\n", program_name);
@@ -168,11 +170,113 @@ int run_benchmark_command(int argc, char** argv) {
 
 }  // namespace
 
+int run_distributed_command(int argc, char** argv) {
+    std::size_t particle_count = 65536;
+    int steps = 5;
+    double theta = 0.7;
+    std::uint64_t seed = 42;
+    for (int i = 2; i < argc; ++i) {
+        const std::string argument = argv[i];
+        auto next_value = [&](const char* name) -> const char* {
+            if (i + 1 >= argc) {
+                std::fprintf(stderr, "distributed: missing value for %s\n", name);
+                return nullptr;
+            }
+            return argv[++i];
+        };
+        if (argument == "--particles") {
+            particle_count = (std::size_t)std::strtoull(next_value("--particles"), nullptr, 10);
+        } else if (argument == "--steps") {
+            steps = std::atoi(next_value("--steps"));
+        } else if (argument == "--theta") {
+            theta = std::atof(next_value("--theta"));
+        } else if (argument == "--seed") {
+            seed = (std::uint64_t)std::strtoull(next_value("--seed"), nullptr, 10);
+        } else {
+            std::fprintf(stderr, "distributed: unknown argument %s\n", argv[i]);
+            return 1;
+        }
+    }
+
+    HpcsimMpiRuntime runtime;
+    if (hpcsim_mpi_initialize(&argc, &argv, &runtime) != 0 || !runtime.available) {
+        std::fprintf(stderr, "distributed: not running under mpiexec (launch with "
+                             "mpiexec -n P %s distributed ...)\n",
+                     argv[0]);
+        return 1;
+    }
+    if (runtime.comm_size < 1) {
+        hpcsim_mpi_finalize();
+        return 1;
+    }
+
+    HpcsimError error;
+    hpcsim_error_clear(&error);
+    const std::size_t local_count = particle_count / (std::size_t)runtime.comm_size;
+
+    HpcsimParticleSystem* local = hpcsim_particle_system_create(local_count);
+    if (local == NULL) {
+        std::fprintf(stderr, "distributed: failed to allocate local particles\n");
+        hpcsim_mpi_finalize();
+        return 1;
+    }
+    HpcsimPresetParameters parameters = {local_count,
+                                         seed + 0x9E3779B9u * (std::uint64_t)runtime.rank};
+    if (hpcsim_preset_generate_parallel(local, HPCSIM_PRESET_RANDOM_CLOUD, &parameters,
+                                        &error) != HPCSIM_STATUS_OK) {
+        std::fprintf(stderr, "distributed: preset generation failed\n");
+        hpcsim_particle_system_destroy(local);
+        hpcsim_mpi_finalize();
+        return 1;
+    }
+
+    HpcsimGravity gravity;
+    hpcsim_gravity_init(&gravity, 1.0, 0.02);
+    HpcsimDistributedSimulation* simulation = hpcsim_distributed_create(&runtime, &error);
+    if (simulation == NULL) {
+        hpcsim_particle_system_destroy(local);
+        hpcsim_mpi_finalize();
+        return 1;
+    }
+    hpcsim_distributed_set_theta(simulation, theta);
+
+    HpcsimParticleSystemView view;
+    hpcsim_particle_system_view(local, &view, &error);
+
+    const double t0 = hpcsim_mpi_wall_time();
+    for (int step = 0; step < steps; ++step) {
+        if (hpcsim_distributed_compute_acceleration(&view, &gravity, simulation, &error) !=
+            HPCSIM_STATUS_OK) {
+            std::fprintf(stderr, "distributed: force evaluation failed\n");
+            break;
+        }
+    }
+    const double total = hpcsim_mpi_wall_time() - t0;
+
+    HpcsimDistributedStats stats;
+    hpcsim_distributed_stats(simulation, &stats);
+    std::printf("Rank %d: particles=%zu remote_cells=%zu essential=%zu levels=%d "
+                "compute=%.2f%% communication=%.2f%% avg_step=%.3f ms\n",
+                stats.rank, stats.local_particles, stats.remote_cells,
+                stats.essential_cells, stats.levels_exchanged,
+                total > 0.0 ? 100.0 * stats.computation_time_seconds / total : 0.0,
+                total > 0.0 ? 100.0 * stats.communication_time_seconds / total : 0.0,
+                1000.0 * total / (double)steps);
+
+    hpcsim_distributed_destroy(simulation);
+    hpcsim_particle_system_destroy(local);
+    hpcsim_mpi_finalize();
+    return 0;
+}
+
 int main(int argc, char** argv) {
     try {
         if (argc >= 2 && std::strcmp(argv[1], "hardware") == 0) {
             print_hardware();
             return 0;
+        }
+        if (argc >= 2 && std::strcmp(argv[1], "distributed") == 0) {
+            return run_distributed_command(argc, argv);
         }
         if (argc >= 2 && std::strcmp(argv[1], "benchmark") == 0) {
             return run_benchmark_command(argc, argv);
