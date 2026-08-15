@@ -39,6 +39,7 @@ target_link_libraries(dear_imgui PUBLIC
 # ---------------------------------------------------------------------------
 add_library(${HPCSIM_CPP_LIBRARY} STATIC
     application/Application.cpp
+    logging/Logger.cpp
     rendering/Camera.cpp
     rendering/Renderer.cpp
     simulation/ParticleSystem.cpp
