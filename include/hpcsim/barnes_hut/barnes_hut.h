@@ -63,6 +63,24 @@ HpcsimStatus hpcsim_barnes_hut_compute_acceleration(const HpcsimParticleSystemVi
                                                     void* context, HpcsimError* error);
 
 /*
+ * AVX2 SIMD variants of the Barnes-Hut force evaluation.
+ *
+ * Four Morton-adjacent query particles are walked through the tree together;
+ * nodes accepted by all four lanes are applied as four vectorized softened
+ * interactions with 256-bit FMA. Because the group descends when any lane
+ * needs finer detail, the result matches the scalar Barnes-Hut kernel within
+ * tolerance (not bit-for-bit). On CPUs without AVX2 these functions degrade
+ * to the scalar kernel.
+ */
+HpcsimStatus hpcsim_barnes_hut_compute_acceleration_avx2(
+    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
+    HpcsimError* error);
+
+HpcsimStatus hpcsim_barnes_hut_compute_acceleration_openmp_avx2(
+    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
+    HpcsimError* error);
+
+/*
  * Read statistics from the most recent force evaluation. Returns 0 on
  * success, non-zero if `tree` or `stats` is NULL.
  */
