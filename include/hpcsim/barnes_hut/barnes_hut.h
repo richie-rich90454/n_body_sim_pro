@@ -35,6 +35,8 @@ typedef struct HpcsimBarnesHutStats {
     size_t accepted_approximations;
     size_t exact_interactions;
     size_t maximum_depth;
+    double build_time_seconds;
+    double evaluation_time_seconds;
 } HpcsimBarnesHutStats;
 
 /* Create a reusable Barnes-Hut force context. NULL on allocation failure. */
