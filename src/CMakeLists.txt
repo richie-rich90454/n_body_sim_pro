@@ -1,7 +1,3 @@
-set(HPCSIM_C_LIBRARY n_body_sim_pro_c)
-set(HPCSIM_CPP_LIBRARY n_body_sim_pro_cpp)
-set(HPCSIM_EXECUTABLE n_body_sim_pro)
-
 add_subdirectory(c)
 add_subdirectory(cpp)
 
@@ -14,4 +10,5 @@ if(HPCSIM_BUILD_APPLICATION)
     set_target_properties(${HPCSIM_EXECUTABLE} PROPERTIES
         CXX_STANDARD 20
         CXX_STANDARD_REQUIRED ON)
+    hpcsim_apply_warnings(${HPCSIM_EXECUTABLE})
 endif()
