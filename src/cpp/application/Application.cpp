@@ -1,4 +1,5 @@
 #include "application/Application.hpp"
+#include "application/AppIcon.hpp"
 
 #include "logging/Logger.hpp"
 
@@ -94,6 +95,7 @@ bool Application::initialize_sdl() {
         std::fprintf(stderr, "N-Body Sim Pro: SDL_CreateWindow failed: %s\n", SDL_GetError());
         return false;
     }
+    apply_window_icon(window_);
     return true;
 }
 
