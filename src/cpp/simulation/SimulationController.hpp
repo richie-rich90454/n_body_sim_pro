@@ -88,6 +88,10 @@ public:
     /* Conservation diagnostics refreshed each step. */
     const NumericalDiagnostics& numerical_diagnostics() const { return diagnostics_; }
 
+    /* Energy drift is only tracked for systems where the O(N^2) potential
+     * energy sum is affordable. */
+    static constexpr std::size_t ENERGY_TRACK_MAX_PARTICLES = 20000;
+
     /* Per-body trajectory trail for the two-body preset. */
     const std::array<std::vector<rendering::Vec3>, 2>& trails() const { return trails_; }
     void clear_trails();
@@ -123,7 +127,6 @@ private:
     double momentum_scale_ = 1.0;
     int energy_tracking_steps_ = 0;
     static constexpr int ENERGY_TRACK_INTERVAL = 60;
-    static constexpr std::size_t ENERGY_TRACK_MAX_PARTICLES = 20000;
 };
 
 }  // namespace hpcsim
