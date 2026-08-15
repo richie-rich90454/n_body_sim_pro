@@ -51,15 +51,17 @@ if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
         -Wconversion
         -Wshadow
         -Wcast-qual
-        -Wwrite-strings
+        -Wwrite-strings)
+        add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:${flag}>)
+    endforeach()
+    foreach(flag
         -Wstrict-prototypes
         -Wmissing-prototypes
         -Wold-style-definition
         -Wvla
         -Wdouble-promotion)
-        list(APPEND HPCSIM_BASE_WARNING_FLAGS ${flag})
+        add_compile_options($<$<COMPILE_LANGUAGE:C>:${flag}>)
     endforeach()
-    add_compile_options(${HPCSIM_BASE_WARNING_FLAGS})
 endif()
 
 if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU" AND HPCSIM_ENABLE_SANITIZERS)
@@ -90,11 +92,11 @@ FetchContent_MakeAvailable(dear_imgui)
 # ---------------------------------------------------------------------------
 add_subdirectory(src)
 
-if(HPCSIM_BUILD_TESTS)
+if(HPCSIM_BUILD_TESTS AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tests)
     enable_testing()
     add_subdirectory(tests)
 endif()
 
-if(HPCSIM_BUILD_BENCHMARKS)
+if(HPCSIM_BUILD_BENCHMARKS AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks)
     add_subdirectory(benchmarks)
 endif()
