@@ -21,14 +21,14 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # ---------------------------------------------------------------------------
 # Options
 # ---------------------------------------------------------------------------
-option(HPCSIM_ENABLE_OPENMP "Enable OpenMP shared-memory parallelism" ON)
-option(HPCSIM_ENABLE_MPI "Enable MPI distributed execution when an MPI implementation is found" ON)
-option(HPCSIM_ENABLE_DEVELOPER_MODE "Enable developer instrumentation (allocation tracking, telemetry)" ON)
-option(HPCSIM_BUILD_TESTS "Build the test suite" ON)
-option(HPCSIM_BUILD_BENCHMARKS "Build the benchmark suite" ON)
-option(HPCSIM_BUILD_APPLICATION "Build the interactive SDL3/OpenGL/ImGui application" ON)
-option(HPCSIM_ENABLE_SANITIZERS "Enable AddressSanitizer/UndefinedBehaviorSanitizer" OFF)
-option(HPCSIM_ENABLE_LTO "Enable link-time optimization in Release builds" OFF)
+option(N_BODY_SIM_PRO_ENABLE_OPENMP "Enable OpenMP shared-memory parallelism" ON)
+option(N_BODY_SIM_PRO_ENABLE_MPI "Enable MPI distributed execution when an MPI implementation is found" ON)
+option(N_BODY_SIM_PRO_ENABLE_DEVELOPER_MODE "Enable developer instrumentation (allocation tracking, telemetry)" ON)
+option(N_BODY_SIM_PRO_BUILD_TESTS "Build the test suite" ON)
+option(N_BODY_SIM_PRO_BUILD_BENCHMARKS "Build the benchmark suite" ON)
+option(N_BODY_SIM_PRO_BUILD_APPLICATION "Build the interactive SDL3/OpenGL/ImGui application" ON)
+option(N_BODY_SIM_PRO_ENABLE_SANITIZERS "Enable AddressSanitizer/UndefinedBehaviorSanitizer" OFF)
+option(N_BODY_SIM_PRO_ENABLE_LTO "Enable link-time optimization in Release builds" OFF)
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
@@ -42,12 +42,12 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 # ---------------------------------------------------------------------------
-# Aggressive compiler warnings for HPCSim code.
+# Aggressive compiler warnings for N-Body Sim Pro code.
 #
 # Applied per-target (not globally) so third-party libraries such as Dear
-# ImGui are not compiled with HPCSim's strict flag set.
+# ImGui are not compiled with N-Body Sim Pro's strict flag set.
 # ---------------------------------------------------------------------------
-function(hpcsim_apply_warnings target)
+function(n_body_sim_pro_apply_warnings target)
     if(NOT CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
         return()
     endif()
@@ -65,14 +65,14 @@ function(hpcsim_apply_warnings target)
         $<$<COMPILE_LANGUAGE:C>:-Wold-style-definition>
         $<$<COMPILE_LANGUAGE:C>:-Wvla>
         $<$<COMPILE_LANGUAGE:C>:-Wdouble-promotion>)
-    if(HPCSIM_ENABLE_SANITIZERS)
+    if(N_BODY_SIM_PRO_ENABLE_SANITIZERS)
         target_compile_options(${target} PRIVATE
             -fsanitize=address,undefined -fno-omit-frame-pointer)
         target_link_options(${target} PRIVATE -fsanitize=address,undefined)
     endif()
 endfunction()
 
-if(HPCSIM_ENABLE_LTO AND CMAKE_BUILD_TYPE STREQUAL "Release")
+if(N_BODY_SIM_PRO_ENABLE_LTO AND CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
 endif()
 
@@ -93,17 +93,17 @@ FetchContent_MakeAvailable(dear_imgui)
 # ---------------------------------------------------------------------------
 # Subdirectories
 # ---------------------------------------------------------------------------
-set(HPCSIM_C_LIBRARY n_body_sim_pro_c)
-set(HPCSIM_CPP_LIBRARY n_body_sim_pro_cpp)
-set(HPCSIM_EXECUTABLE n_body_sim_pro)
+set(N_BODY_SIM_PRO_C_LIBRARY n_body_sim_pro_c)
+set(N_BODY_SIM_PRO_CPP_LIBRARY n_body_sim_pro_cpp)
+set(N_BODY_SIM_PRO_EXECUTABLE n_body_sim_pro)
 
 add_subdirectory(src)
 
-if(HPCSIM_BUILD_TESTS AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+if(N_BODY_SIM_PRO_BUILD_TESTS AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tests)
     enable_testing()
     add_subdirectory(tests)
 endif()
 
-if(HPCSIM_BUILD_BENCHMARKS AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks)
+if(N_BODY_SIM_PRO_BUILD_BENCHMARKS AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks)
     add_subdirectory(benchmarks)
 endif()

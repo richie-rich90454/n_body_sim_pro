@@ -32,7 +32,7 @@ tests/**/*.out
 *.hpcs
 checkpoints/
 runs/
-hpcsim_imgui.ini
+n_body_sim_pro_imgui.ini
 
 # OS noise
 .DS_Store
