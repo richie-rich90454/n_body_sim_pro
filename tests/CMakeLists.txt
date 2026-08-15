@@ -6,6 +6,7 @@ set(HPCSIM_TESTS
     unit/particle_system_test
     numerical/gravity_test
     numerical/diagnostics_test
+    numerical/openmp_equivalence_test
     generation/random_test
     generation/presets_test
     regression/two_body_test)
