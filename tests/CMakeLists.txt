@@ -8,6 +8,7 @@ set(HPCSIM_TESTS
     numerical/diagnostics_test
     numerical/openmp_equivalence_test
     numerical/simd_equivalence_test
+    numerical/barnes_hut_test
     generation/random_test
     generation/presets_test
     regression/two_body_test)
