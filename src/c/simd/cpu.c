@@ -52,13 +52,13 @@ const char* hpcsim_cpu_brand_string(void) {
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
     static char brand[49];
     unsigned int registers[4];
-    unsigned int maximum_function = __get_cpuid_max(0, NULL);
-    if (maximum_function >= 0x80000004) {
-        __cpuid(0x80000002, registers[0], registers[1], registers[2], registers[3]);
+    const unsigned int maximum_extended = __get_cpuid_max(0x80000000u, NULL);
+    if (maximum_extended >= 0x80000004u) {
+        __cpuid(0x80000002u, registers[0], registers[1], registers[2], registers[3]);
         memcpy(brand, registers, 16);
-        __cpuid(0x80000003, registers[0], registers[1], registers[2], registers[3]);
+        __cpuid(0x80000003u, registers[0], registers[1], registers[2], registers[3]);
         memcpy(brand + 16, registers, 16);
-        __cpuid(0x80000004, registers[0], registers[1], registers[2], registers[3]);
+        __cpuid(0x80000004u, registers[0], registers[1], registers[2], registers[3]);
         memcpy(brand + 32, registers, 16);
         brand[48] = '\0';
         return brand;
