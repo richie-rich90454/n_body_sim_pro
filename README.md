@@ -58,47 +58,91 @@ Every run prints machine-readable JSON as its final line, e.g.:
 {"cpu":"Intel(R) Core(TM) Ultra 7 255H","simd":{"avx2":true,...},"particles":1000000,...}
 ```
 
+## Prerequisites
+
+- A **C17 + C++20** toolchain. GCC and Clang are first-class; MSVC is
+  secondary support (not the design target).
+- **CMake** 3.28 or newer and a generator (Ninja recommended).
+- **SDL3** development libraries. On MSYS2/ucrt64:
+  `pacman -S mingw-w64-ucrt-x86_64-sdl3 mingw-w64-ucrt-x86_64-glew`. On
+  Debian/Ubuntu: `libsdl3-dev`, `libglew-dev`. On macOS:
+  `brew install sdl3 glew`.
+- **OpenMP** support in the compiler (for threaded kernels).
+- **Microsoft MPI** (Windows) or an MPI implementation such as OpenMPI or
+  MPICH (Linux/macOS) — only needed for the distributed (`mpiexec`) path;
+  everything else builds and runs without it.
+- **Dear ImGui** is fetched automatically by CMake over Git (SSH) — no
+  manual step.
+
 ## Building
 
-Requires a C17 and C++20 toolchain, CMake 3.28+, SDL3, and Dear ImGui
-(fetched automatically). GCC and Clang are first-class; MSVC is secondary.
-
 ```
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ctest --test-dir build
 ```
 
-CMake presets are provided:
+CMake presets cover the common configurations:
 
 ```
-cmake --preset debug          # assertions + debug info
-cmake --preset release        # -O2
-cmake --preset relwithdebinfo # for profiling
-cmake --preset sanitizer      # AddressSanitizer + UndefinedBehaviorSanitizer
-cmake --preset benchmark      # headless, no GUI, tests off
+cmake --preset debug            # assertions + debug info
+cmake --preset release          # optimized
+cmake --preset relwithdebinfo   # optimized + debug info (for profiling)
+cmake --preset sanitizer        # AddressSanitizer + UndefinedBehaviorSanitizer
+cmake --preset benchmark        # headless, no GUI, tests off
 ```
+
+The presets point at the MSYS2 ucrt64 toolchain and prefix path; adjust
+`CMakePresets.json` if your environment differs. MPI is detected
+automatically (`-DHPCSIM_ENABLE_MPI=ON` by default); pass
+`-DHPCSIM_ENABLE_MPI=OFF` to build without it.
 
 ## Usage
 
 ```
-n_body_sim_pro                    # interactive application
-n_body_sim_pro hardware           # detected CPU / SIMD / OpenMP
-n_body_sim_pro benchmark --help   # headless benchmarks
+n_body_sim_pro                          # launch the interactive application
+n_body_sim_pro hardware                 # detected CPU / SIMD / OpenMP / NUMA
+n_body_sim_pro benchmark --help         # headless benchmarks (JSON output)
 n_body_sim_pro save galaxy.hpcs --particles 65536 --preset galaxy_collision
 n_body_sim_pro resume galaxy.hpcs --steps 100 --threads 16
+mpiexec -n 2 n_body_sim_pro distributed --particles 4096 --steps 5
 ```
 
-The interactive application provides:
+### Launching the interactive application
 
-- nine astrophysical presets (two body, random cloud, solar system, open
-  cluster, globular cluster, spiral galaxy, elliptical galaxy, galaxy
-  collision, triple galaxy) with deterministic seeds
-- reference / OpenMP / SIMD / Barnes-Hut algorithm selection with adjustable
-  theta (the theta/accuracy trade-off is measurable in the UI)
-- a technical interface: simulation, numerics, performance, memory, and
-  developer-console panels backed entirely by real instrumentation
-- orbit camera (left-drag rotate, middle-drag pan, scroll zoom)
+Running `n_body_sim_pro` with no arguments opens the SDL3 window. The
+default scene is a two-body orbit with trails. Use the **Simulation** panel
+to pick a preset, particle count, seed, and algorithm:
+
+- **All-pairs (OpenMP)** — exact O(N²), parallel.
+- **All-pairs (single thread)** — the scalar reference.
+- **Barnes-Hut** — O(N log N), with a θ slider.
+- **Barnes-Hut (SIMD, experimental)** — the SIMD traversal (benchmarked
+  slower than scalar on most hardware; documented).
+
+Controls:
+
+- Left-drag rotates the camera, middle-drag pans, scroll zooms.
+- **Play/Pause/Step** drive the simulation; **Steps/frame** controls speed.
+- The **Numerics** panel shows real momentum error and energy drift;
+  **Performance** shows measured step/tree/force timings; **Memory** shows
+  live allocations by category; the **Developer Console** streams structured
+  log records.
+
+The application is a scientific workstation UI, not a consumer dashboard:
+every number shown is measured, and unavailable metrics render as `N/A`.
+
+### Headless and distributed
+
+`benchmark` runs without any window and prints human-readable output plus a
+machine-readable JSON line. `distributed` requires MPI:
+
+```
+mpiexec -n 2 build/release/bin/n_body_sim_pro distributed --particles 4096 --steps 5
+```
+
+Each rank reports its own particle block, remote essential-tree cells,
+exchange levels, and the communication/computation split.
 
 ## Architecture
 
@@ -137,11 +181,17 @@ Why these choices exist is documented in [`docs/`](docs/):
 - [x] OpenMP parallel kernels and thread control
 - [x] Runtime SIMD dispatch with AVX2 kernel
 - [x] Barnes-Hut octree with theta control and Morton-order optimization
+- [x] SIMD Barnes-Hut force traversal (implemented; benchmarked slower than
+      scalar on the reference hardware, documented honestly)
 - [x] Structured logging, allocation tracking, phase telemetry, developer UI
 - [x] Headless benchmark CLI with JSON output, memory estimation, checkpoints
-- [ ] SIMD Barnes-Hut force traversal
-- [ ] NUMA-aware placement
-- [ ] MPI + OpenMP + SIMD distributed execution
+- [x] NUMA topology detection, thread affinity policies, first-touch
+      parallel generation
+- [x] MPI distributed execution with a local essential-tree exchange and
+      per-rank telemetry
+- [ ] SIMD acceleration of the distributed traversal
+- [ ] AVX-512 / NEON all-pairs and Barnes-Hut kernels
+- [ ] MPI + OpenMP + SIMD hybrid at scale
 
 ## License
 
