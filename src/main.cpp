@@ -1,12 +1,174 @@
 #include "application/Application.hpp"
+#include "benchmark/HeadlessRunner.hpp"
+
+#include <hpcsim/hpcsim.h>
 
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <exception>
+#include <string>
+
+namespace {
+
+void print_hardware() {
+    const HpcsimCpuFeatures cpu = hpcsim_cpu_detect_features();
+    std::printf("CPU            : %s\n", hpcsim_cpu_brand_string());
+    std::printf("Architecture   : %s\n",
+#if defined(__x86_64__) || defined(_M_X64)
+                "x86-64"
+#elif defined(__aarch64__) || defined(_M_ARM64)
+                "ARM64"
+#else
+                "unknown"
+#endif
+    );
+    std::printf("OpenMP         : %s (%d threads available)\n",
+                hpcsim_threading_openmp_available() ? "enabled" : "unavailable",
+                hpcsim_threading_available_thread_count());
+    std::printf("SIMD           :\n");
+    std::printf("  SSE2         : %s\n", cpu.has_sse2 ? "available" : "unavailable");
+    std::printf("  AVX2         : %s\n", cpu.has_avx2 ? "available" : "unavailable");
+    std::printf("  FMA          : %s\n", cpu.has_fma ? "available" : "unavailable");
+    std::printf("  AVX-512      : %s\n",
+                cpu.has_avx512_foundation ? "available" : "unavailable");
+    std::printf("  NEON         : %s\n", cpu.has_neon ? "available" : "unavailable");
+    std::printf("Selected backend : %s\n",
+                hpcsim_simd_backend_string(
+                    hpcsim_simd_best_available_backend(&cpu)));
+}
+
+void print_usage(const char* program_name) {
+    std::printf("HPCSim - CPU N-Body Simulation Engine\n");
+    std::printf("Usage:\n");
+    std::printf("  %s                    launch the interactive application\n", program_name);
+    std::printf("  %s hardware           print detected CPU/SIMD/OpenMP information\n",
+                program_name);
+    std::printf("  %s benchmark [options] run a headless benchmark\n", program_name);
+    std::printf("    --particles N       particle count\n");
+    std::printf("    --steps S           number of simulated steps\n");
+    std::printf("    --threads T         OpenMP thread count (0 = auto)\n");
+    std::printf("    --algorithm A       all_pairs | barnes_hut\n");
+    std::printf("    --theta T           Barnes-Hut opening angle\n");
+    std::printf("    --preset P          two_body, random_cloud, solar_system,\n");
+    std::printf("                        open_cluster, globular_cluster, spiral_galaxy,\n");
+    std::printf("                        elliptical_galaxy, galaxy_collision,\n");
+    std::printf("                        triple_galaxy\n");
+}
+
+bool parse_unsigned(const char* text, unsigned long long* value) {
+    if (text == nullptr || *text == '\0') {
+        return false;
+    }
+    char* end = nullptr;
+    *value = std::strtoull(text, &end, 10);
+    return end != text && *end == '\0';
+}
+
+int run_benchmark_command(int argc, char** argv) {
+    hpcsim::benchmark::HeadlessOptions options;
+    bool barnes_hut_override = false;
+
+    for (int i = 2; i < argc; ++i) {
+        const std::string argument = argv[i];
+        auto next_value = [&](const char* name) -> const char* {
+            if (i + 1 >= argc) {
+                std::fprintf(stderr, "benchmark: missing value for %s\n", name);
+                return nullptr;
+            }
+            return argv[++i];
+        };
+        if (argument == "--particles") {
+            unsigned long long value;
+            if (!parse_unsigned(next_value("--particles"), &value)) {
+                return 1;
+            }
+            options.particle_count = (std::size_t)value;
+        } else if (argument == "--steps") {
+            unsigned long long value;
+            if (!parse_unsigned(next_value("--steps"), &value)) {
+                return 1;
+            }
+            options.steps = (int)value;
+        } else if (argument == "--threads") {
+            unsigned long long value;
+            if (!parse_unsigned(next_value("--threads"), &value)) {
+                return 1;
+            }
+            options.threads = (int)value;
+        } else if (argument == "--theta") {
+            if (i + 1 >= argc) {
+                std::fprintf(stderr, "benchmark: missing value for --theta\n");
+                return 1;
+            }
+            options.theta = std::atof(argv[++i]);
+        } else if (argument == "--algorithm") {
+            const char* value = next_value("--algorithm");
+            if (value == nullptr) {
+                return 1;
+            }
+            if (std::strcmp(value, "barnes_hut") == 0) {
+                options.barnes_hut = true;
+                barnes_hut_override = true;
+            } else if (std::strcmp(value, "all_pairs") == 0) {
+                options.barnes_hut = false;
+                barnes_hut_override = true;
+            } else {
+                std::fprintf(stderr, "benchmark: unknown algorithm %s\n", value);
+                return 1;
+            }
+        } else if (argument == "--preset") {
+            const char* value = next_value("--preset");
+            if (value == nullptr) {
+                return 1;
+            }
+            bool found = false;
+            for (int preset = 0; preset < HPCSIM_PRESET_COUNT; ++preset) {
+                if (std::strcmp(value, hpcsim_preset_string((HpcsimSimulationPreset)preset)) ==
+                    0) {
+                    options.preset = (HpcsimSimulationPreset)preset;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                std::fprintf(stderr, "benchmark: unknown preset %s\n", value);
+                return 1;
+            }
+        } else {
+            std::fprintf(stderr, "benchmark: unknown argument %s\n", argv[i]);
+            return 1;
+        }
+    }
+
+    if (!barnes_hut_override) {
+        options.barnes_hut = options.particle_count > 20000;
+    }
+
+    hpcsim::benchmark::HeadlessReport report;
+    const int status = hpcsim::benchmark::run_headless(options, report);
+    if (status == 0) {
+        hpcsim::benchmark::print_report(options, report);
+    }
+    return status;
+}
+
+}  // namespace
 
 int main(int argc, char** argv) {
-    (void)argc;
-    (void)argv;
     try {
+        if (argc >= 2 && std::strcmp(argv[1], "hardware") == 0) {
+            print_hardware();
+            return 0;
+        }
+        if (argc >= 2 && std::strcmp(argv[1], "benchmark") == 0) {
+            return run_benchmark_command(argc, argv);
+        }
+        if (argc >= 2 && (std::strcmp(argv[1], "--help") == 0 ||
+                          std::strcmp(argv[1], "-h") == 0)) {
+            print_usage(argv[0]);
+            return 0;
+        }
         hpcsim::application::Application application;
         return application.run();
     } catch (const std::exception& error) {
