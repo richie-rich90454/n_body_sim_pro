@@ -3,7 +3,10 @@
 add_library(${HPCSIM_C_LIBRARY} STATIC
     core/status.c
     core/particle_system.c
-    memory/allocator.c)
+    memory/allocator.c
+    physics/gravity.c
+    physics/integrator.c
+    diagnostics/numerics.c)
 
 target_include_directories(${HPCSIM_C_LIBRARY} PUBLIC
     ${CMAKE_SOURCE_DIR}/include)
