@@ -58,6 +58,23 @@ HpcsimStatus hpcsim_preset_generate(HpcsimParticleSystem* particle_system,
                                     const HpcsimPresetParameters* parameters,
                                     HpcsimError* error);
 
+/*
+ * Parallel first-touch-aware generation.
+ *
+ * Particles are generated with OpenMP; each thread writes its own slice of
+ * the SoA arrays, which establishes NUMA page placement on the node of the
+ * thread that will process it. Every particle's randomness is derived
+ * deterministically from (random_seed, particle index), so the result is
+ * reproducible across thread counts and matches the sequential generator's
+ * statistical distributions. The exact sequence differs from
+ * hpcsim_preset_generate (which uses a single sequential PRNG stream); the
+ * sequential generator remains the correctness reference.
+ */
+HpcsimStatus hpcsim_preset_generate_parallel(HpcsimParticleSystem* particle_system,
+                                             HpcsimSimulationPreset preset,
+                                             const HpcsimPresetParameters* parameters,
+                                             HpcsimError* error);
+
 #ifdef __cplusplus
 }
 #endif
