@@ -91,6 +91,11 @@ public:
     /* Recompute the energy drift immediately (used by headless runs). */
     void refresh_energy_diagnostics();
 
+    /* Save the full simulation state to a checkpoint file. */
+    void save_checkpoint(const char* path);
+    /* Restore simulation state from a checkpoint file. */
+    void load_checkpoint(const char* path);
+
     /* Energy drift is only tracked for systems where the O(N^2) potential
      * energy sum is affordable. */
     static constexpr std::size_t ENERGY_TRACK_MAX_PARTICLES = 20000;
