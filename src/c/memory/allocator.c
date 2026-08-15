@@ -1,8 +1,9 @@
 #include "hpcsim/memory/allocator.h"
+#include "hpcsim/memory/allocation_tracker.h"
 
 #include <stdint.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 typedef struct HpcsimAllocationHeader {
     size_t size;
@@ -38,6 +39,8 @@ const char* hpcsim_allocation_category_string(HpcsimAllocationCategory category)
             return "ui";
         case HPCSIM_ALLOCATION_CATEGORY_OTHER:
             return "other";
+        case HPCSIM_ALLOCATION_CATEGORY_COUNT:
+            break;
     }
     return "unknown";
 }
@@ -88,6 +91,8 @@ void* hpcsim_allocate(size_t size, size_t alignment,
     void** back_reference = (void**)(aligned_address - (uintptr_t)sizeof(void*));
     *back_reference = header;
 
+    hpcsim_allocation_tracker_record(category, size, 1);
+
     return (void*)aligned_address;
 }
 
@@ -100,6 +105,7 @@ void hpcsim_deallocate(void* pointer, const char* source_file, int source_line) 
     HpcsimAllocationHeader** back_reference =
         (HpcsimAllocationHeader**)((uintptr_t)pointer - (uintptr_t)sizeof(void*));
     HpcsimAllocationHeader* header = *back_reference;
+    hpcsim_allocation_tracker_record(header->category, header->size, 0);
     free(header);
 }
 
