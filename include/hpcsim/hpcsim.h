@@ -24,5 +24,6 @@
 #include "hpcsim/simd/backend.h"
 #include "hpcsim/simd/cpu.h"
 #include "hpcsim/threading/threading.h"
+#include "hpcsim/threading/numa.h"
 
 #endif /* HPCSIM_H */
