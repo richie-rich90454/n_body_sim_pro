@@ -1,3 +1,8 @@
+---
+title: NUMA-aware Placement
+description: Topology detection, thread affinity policies, first-touch placement, and the measured effect of parallel generation.
+---
+
 # NUMA-aware Placement
 
 NUMA = Non-Uniform Memory Access. On multi-socket systems each socket has
