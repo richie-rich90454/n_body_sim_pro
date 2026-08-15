@@ -1,4 +1,4 @@
-# HPCSim
+# N-Body Sim Pro
 
 A native CPU HPC simulation and visualization engine for large-scale gravitational N-body systems.
 
@@ -7,7 +7,7 @@ A native CPU HPC simulation and visualization engine for large-scale gravitation
 - Runtime SIMD dispatch (SSE2 / AVX2 / AVX-512 / ARM NEON) with FMA
 - Barnes-Hut O(N log N) octree with Morton-order cache optimization
 - SDL3, OpenGL, Dear ImGui visualization
-- 10M+ particle target; 100M–1B benchmark infrastructure
+- 10M+ particle target; 100M鈥?B benchmark infrastructure
 
 Physics is **CPU-only**. The GPU is used strictly for visualization.
 
@@ -15,7 +15,7 @@ Physics is **CPU-only**. The GPU is used strictly for visualization.
 
 - **Two-body validation**: a circular orbit stays an orbit; energy, momentum, and
   center of mass are conserved to the accuracy a symplectic integrator provides.
-- **Reference-first development**: a deliberately simple scalar O(N²) kernel is
+- **Reference-first development**: a deliberately simple scalar O(N虏) kernel is
   the correctness authority; OpenMP, SIMD, and Barnes-Hut are validated against it.
 - **Measured, not claimed**: every optimization in this repository was benchmarked
   on the machine it was developed on. Numbers below are real runs, not estimates.
@@ -69,9 +69,9 @@ Every run prints machine-readable JSON as its final line, e.g.:
   `brew install sdl3 glew`.
 - **OpenMP** support in the compiler (for threaded kernels).
 - **Microsoft MPI** (Windows) or an MPI implementation such as OpenMPI or
-  MPICH (Linux/macOS) — only needed for the distributed (`mpiexec`) path;
+  MPICH (Linux/macOS) 鈥?only needed for the distributed (`mpiexec`) path;
   everything else builds and runs without it.
-- **Dear ImGui** is fetched automatically by CMake over Git (SSH) — no
+- **Dear ImGui** is fetched automatically by CMake over Git (SSH) 鈥?no
   manual step.
 
 ## Building
@@ -94,8 +94,8 @@ cmake --preset benchmark        # headless, no GUI, tests off
 
 The presets point at the MSYS2 ucrt64 toolchain and prefix path; adjust
 `CMakePresets.json` if your environment differs. MPI is detected
-automatically (`-DHPCSIM_ENABLE_MPI=ON` by default); pass
-`-DHPCSIM_ENABLE_MPI=OFF` to build without it.
+automatically (`-DN_BODY_SIM_PRO_ENABLE_MPI=ON` by default); pass
+`-DN_BODY_SIM_PRO_ENABLE_MPI=OFF` to build without it.
 
 ## Usage
 
@@ -114,10 +114,10 @@ Running `n_body_sim_pro` with no arguments opens the SDL3 window. The
 default scene is a two-body orbit with trails. Use the **Simulation** panel
 to pick a preset, particle count, seed, and algorithm:
 
-- **All-pairs (OpenMP)** — exact O(N²), parallel.
-- **All-pairs (single thread)** — the scalar reference.
-- **Barnes-Hut** — O(N log N), with a θ slider.
-- **Barnes-Hut (SIMD, experimental)** — the SIMD traversal (benchmarked
+- **All-pairs (OpenMP)** 鈥?exact O(N虏), parallel.
+- **All-pairs (single thread)** 鈥?the scalar reference.
+- **Barnes-Hut** 鈥?O(N log N), with a 胃 slider.
+- **Barnes-Hut (SIMD, experimental)** 鈥?the SIMD traversal (benchmarked
   slower than scalar on most hardware; documented).
 
 Controls:
@@ -160,7 +160,7 @@ C++ application layer          C17 HPC engine
                                  MPI essential-tree exchange
 ```
 
-The C engine exposes a plain C ABI (`include/hpcsim/hpcsim.h`); the C++
+The C engine exposes a plain C ABI (`include/n_body_sim_pro/n_body_sim_pro.h`); the C++
 layer wraps it in RAII. Physics is CPU-only; OpenGL is strictly
 visualization.
 
@@ -173,18 +173,18 @@ measured results, SIMD, NUMA, MPI, CLI reference) is published as a
 [`docs/`](docs/).
 
 - [`docs/architecture/architecture.md`](docs/architecture/architecture.md)
-  — C/C++ boundary, memory model, pipeline, SIMD dispatch, instrumentation
-- [`docs/physics/gravity.md`](docs/physics/gravity.md) — equations, softening
-- [`docs/physics/integrators.md`](docs/physics/integrators.md) — integrator
+  鈥?C/C++ boundary, memory model, pipeline, SIMD dispatch, instrumentation
+- [`docs/physics/gravity.md`](docs/physics/gravity.md) 鈥?equations, softening
+- [`docs/physics/integrators.md`](docs/physics/integrators.md) 鈥?integrator
   properties
-- [`docs/physics/presets.md`](docs/physics/presets.md) — preset assumptions
-- [`docs/performance/benchmarks.md`](docs/performance/benchmarks.md) — real
+- [`docs/physics/presets.md`](docs/physics/presets.md) 鈥?preset assumptions
+- [`docs/performance/benchmarks.md`](docs/performance/benchmarks.md) 鈥?real
   measured results and how to reproduce them
-- [`docs/performance/simd.md`](docs/performance/simd.md) — SIMD coverage
+- [`docs/performance/simd.md`](docs/performance/simd.md) 鈥?SIMD coverage
 
 ## Roadmap
 
-- [x] Reference O(N²), two-body validation
+- [x] Reference O(N虏), two-body validation
 - [x] OpenMP parallel kernels and thread control
 - [x] Runtime SIMD dispatch with AVX2 kernel
 - [x] Barnes-Hut octree with theta control and Morton-order optimization
@@ -202,4 +202,4 @@ measured results, SIMD, NUMA, MPI, CLI reference) is published as a
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT 鈥?see [LICENSE](LICENSE).

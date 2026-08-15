@@ -29,10 +29,10 @@
 
 ## Before you commit
 
-1. `git status` and `git diff` — confirm exactly one intended file changed.
+1. `git status` and `git diff` 鈥?confirm exactly one intended file changed.
 2. Build with the `debug` preset; it enables the strict warning set. Aim for
    zero warnings.
-3. Run `ctest --test-dir build/debug` — all tests must pass.
+3. Run `ctest --test-dir build/debug` 鈥?all tests must pass.
 4. Run the `sanitizer` preset for memory-sensitive changes
    (`cmake --preset sanitizer && ctest --test-dir build/sanitizer`). The
    preset requires a toolchain with ASan runtimes (GCC with libasan, or
@@ -43,11 +43,11 @@
 
 ## Code layout
 
-- `include/hpcsim/` — public C API headers.
-- `src/c/` — C17 engine (core, physics, barnes_hut, memory, simd, threading,
+- `include/n_body_sim_pro/` 鈥?public C API headers.
+- `src/c/` 鈥?C17 engine (core, physics, barnes_hut, memory, simd, threading,
   generation, diagnostics, checkpoint).
-- `src/cpp/` — C++20 application layer (application, simulation, rendering,
+- `src/cpp/` 鈥?C++20 application layer (application, simulation, rendering,
   ui, logging, instrumentation, benchmark).
-- `tests/` — unit, numerical, and regression tests, each its own executable.
-- `benchmarks/` — headless benchmark executables.
-- `docs/` — architecture and physics rationale, real benchmark results.
+- `tests/` 鈥?unit, numerical, and regression tests, each its own executable.
+- `benchmarks/` 鈥?headless benchmark executables.
+- `docs/` 鈥?architecture and physics rationale, real benchmark results.

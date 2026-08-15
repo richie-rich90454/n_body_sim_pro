@@ -14,7 +14,7 @@ with *G* the gravitational constant, *m_j* the source mass, and the vector
 
 ## Softening
 
-Direct use of the 1/r² force is singular at contact. The engine uses
+Direct use of the 1/r虏 force is singular at contact. The engine uses
 Plummer softening:
 
 ```
@@ -34,7 +34,7 @@ U_ij = -G * m_i * m_j / sqrt(|r_j - r_i|^2 + epsilon^2)
 
 ## Reference kernel
 
-`hpcsim_gravity_compute_acceleration_reference` computes the exact pairwise
+`n_body_sim_pro_gravity_compute_acceleration_reference` computes the exact pairwise
 sum above in scalar double precision, single-threaded. It is the
 correctness authority for every optimized kernel:
 

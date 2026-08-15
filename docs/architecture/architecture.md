@@ -7,7 +7,7 @@ just the *what*. Every decision here exists to serve a specific, stated goal.
 
 The engine is two layers joined by a plain C ABI.
 
-- **C17 engine** (`src/c`, public headers in `include/hpcsim/`): numerical
+- **C17 engine** (`src/c`, public headers in `include/n_body_sim_pro/`): numerical
   kernels, particle storage, Barnes-Hut, diagnostics, allocation, SIMD
   backends, threading. Data-oriented, procedural, opaque types, explicit
   error codes. No global mutable state, no C++-isms.
@@ -37,7 +37,7 @@ Particles are stored as ten separate contiguous `double` arrays
 
 ## Reference first
 
-`hpcsim_gravity_compute_acceleration_reference` is the deliberate O(N²)
+`n_body_sim_pro_gravity_compute_acceleration_reference` is the deliberate O(N虏)
 single-threaded scalar correctness authority. It is never deleted and never
 "fixed up" to be faster.
 
@@ -85,8 +85,7 @@ until they exist, and the UI reports "unavailable" rather than pretending.
 
 The force kernels parallelize the outer particle loop with a static
 schedule. The reference OpenMP kernel keeps each particle's inner sum in the
-same order, so it is bit-identical to the reference on a given machine —
-parallelism with zero numerical change. The Barnes-Hut traversal is
+same order, so it is bit-identical to the reference on a given machine 鈥?parallelism with zero numerical change. The Barnes-Hut traversal is
 parallelized the same way over query particles; the tree itself is
 read-only during evaluation, so no locking is needed.
 
@@ -95,7 +94,7 @@ threads. Nothing artificially limits it to 4 or 8.
 
 ## Allocation and tracking
 
-Internal allocations go through `hpcsim_allocate`/`hpcsim_deallocate`, which
+Internal allocations go through `n_body_sim_pro_allocate`/`n_body_sim_pro_deallocate`, which
 attach a header carrying size, alignment, and category. Third-party
 libraries never use this layer and the process allocator is never replaced.
 
@@ -114,7 +113,7 @@ benchmark validity.
   in the UI come from these real timers.
 - Conservation diagnostics (momentum error, center-of-mass offset, energy
   drift) are computed from the actual particle state each step. Energy drift
-  requires the O(N²) potential sum, so it is only tracked for systems small
+  requires the O(N虏) potential sum, so it is only tracked for systems small
   enough to afford it; for larger systems the UI reports `N/A` rather than a
   fabricated number.
 
@@ -129,19 +128,19 @@ the renderer uploads a snapshot of positions each frame and draws them as
 The engine detects the NUMA topology (Windows `GetNuma*` API, Linux sysfs),
 can pin threads according to a Compact/Spread policy, and provides a
 first-touch helper. Particle generation can run in parallel with OpenMP,
-where each thread writes its own slice of the SoA arrays — which is both a
+where each thread writes its own slice of the SoA arrays 鈥?which is both a
 parallel generation and a NUMA first-touch placement. On the single-node
 development machine NUMA reports one node and placement is a no-op; the code
 path is real and does the right thing on multi-socket systems.
 
 ## MPI distributed execution
 
-When built with MPI (`HPCSIM_ENABLE_MPI`), the engine can run headless
-across ranks (`mpiexec -n P hpcsim distributed`). Particles are partitioned
+When built with MPI (`N_BODY_SIM_PRO_ENABLE_MPI`), the engine can run headless
+across ranks (`mpiexec -n P n_body_sim_pro distributed`). Particles are partitioned
 into contiguous blocks per rank. Each force evaluation:
 
 1. builds a local Morton-ordered tree over this rank's block,
-2. exchanges a **local essential tree** — the coarse cells of every other
+2. exchanges a **local essential tree** 鈥?the coarse cells of every other
    rank's tree that this rank's particles would actually traverse, refined
    level by level via `MPI_Allgatherv` until no rank needs finer detail
    (`MPI_Allreduce` termination),
@@ -149,7 +148,7 @@ into contiguous blocks per rank. Each force evaluation:
    writes accelerations for this rank's particles.
 
 Every rank holds a distinct particle block and real messages move the tree
-cells — this is not a simulated single-process "distributed" mode. The
+cells 鈥?this is not a simulated single-process "distributed" mode. The
 essential-tree guarantee is that any cell a particle descends into has its
 children present, which the equivalence test verifies against the
 single-rank Barnes-Hut result within the theta tolerance. The per-rank
