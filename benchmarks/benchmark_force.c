@@ -1,7 +1,7 @@
-#include "hpcsim/barnes_hut/barnes_hut.h"
-#include "hpcsim/generation/presets.h"
-#include "hpcsim/physics/gravity.h"
-#include "hpcsim/threading/threading.h"
+#include "n_body_sim_pro/barnes_hut/barnes_hut.h"
+#include "n_body_sim_pro/generation/presets.h"
+#include "n_body_sim_pro/physics/gravity.h"
+#include "n_body_sim_pro/threading/threading.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -79,48 +79,48 @@ static int parse_arguments(int argc, char** argv, BenchmarkOptions* options) {
     return 1;
 }
 
-static double measure_force_evaluation(const HpcsimGravity* gravity,
-                                       HpcsimParticleSystemView* view, int steps,
+static double measure_force_evaluation(const NBodySimProGravity* gravity,
+                                       NBodySimProParticleSystemView* view, int steps,
                                        const char* algorithm, double theta) {
-    HpcsimError error;
-    hpcsim_error_clear(&error);
-    HpcsimBarnesHutTree* tree = NULL;
+    NBodySimProError error;
+    n_body_sim_pro_error_clear(&error);
+    NBodySimProBarnesHutTree* tree = NULL;
     if (strcmp(algorithm, "barnes_hut") == 0 ||
         strcmp(algorithm, "barnes_hut_avx2") == 0 ||
         strcmp(algorithm, "barnes_hut_openmp_avx2") == 0) {
-        tree = hpcsim_barnes_hut_tree_create(&error);
+        tree = n_body_sim_pro_barnes_hut_tree_create(&error);
         if (tree == NULL) {
             fprintf(stderr, "failed to create Barnes-Hut tree\n");
             return -1.0;
         }
-        hpcsim_barnes_hut_tree_set_theta(tree, theta);
+        n_body_sim_pro_barnes_hut_tree_set_theta(tree, theta);
     }
     const double start = wall_time_seconds();
     for (int step = 0; step < steps; ++step) {
-        HpcsimStatus status = HPCSIM_STATUS_INVALID_ARGUMENT;
+        NBodySimProStatus status = N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT;
         if (strcmp(algorithm, "reference") == 0) {
-            status = hpcsim_gravity_compute_acceleration_reference(view, gravity, NULL, &error);
+            status = n_body_sim_pro_gravity_compute_acceleration_reference(view, gravity, NULL, &error);
         } else if (strcmp(algorithm, "openmp") == 0) {
-            status = hpcsim_gravity_compute_acceleration_openmp(view, gravity, NULL, &error);
+            status = n_body_sim_pro_gravity_compute_acceleration_openmp(view, gravity, NULL, &error);
         } else if (strcmp(algorithm, "avx2") == 0) {
-            status = hpcsim_gravity_compute_acceleration_avx2(view, gravity, NULL, &error);
+            status = n_body_sim_pro_gravity_compute_acceleration_avx2(view, gravity, NULL, &error);
         } else if (strcmp(algorithm, "openmp_avx2") == 0) {
-            status = hpcsim_gravity_compute_acceleration_openmp_avx2(view, gravity, NULL, &error);
+            status = n_body_sim_pro_gravity_compute_acceleration_openmp_avx2(view, gravity, NULL, &error);
         } else if (strcmp(algorithm, "barnes_hut_avx2") == 0) {
-            status = hpcsim_barnes_hut_compute_acceleration_avx2(view, gravity, tree, &error);
+            status = n_body_sim_pro_barnes_hut_compute_acceleration_avx2(view, gravity, tree, &error);
         } else if (strcmp(algorithm, "barnes_hut_openmp_avx2") == 0) {
-            status = hpcsim_barnes_hut_compute_acceleration_openmp_avx2(view, gravity, tree, &error);
+            status = n_body_sim_pro_barnes_hut_compute_acceleration_openmp_avx2(view, gravity, tree, &error);
         } else if (strcmp(algorithm, "barnes_hut") == 0) {
-            status = hpcsim_barnes_hut_compute_acceleration(view, gravity, tree, &error);
+            status = n_body_sim_pro_barnes_hut_compute_acceleration(view, gravity, tree, &error);
         }
-        if (status != HPCSIM_STATUS_OK) {
-            fprintf(stderr, "force evaluation failed: %s\n", hpcsim_status_string(status));
-            hpcsim_barnes_hut_tree_destroy(tree);
+        if (status != N_BODY_SIM_PRO_STATUS_OK) {
+            fprintf(stderr, "force evaluation failed: %s\n", n_body_sim_pro_status_string(status));
+            n_body_sim_pro_barnes_hut_tree_destroy(tree);
             return -1.0;
         }
     }
     const double elapsed = wall_time_seconds() - start;
-    hpcsim_barnes_hut_tree_destroy(tree);
+    n_body_sim_pro_barnes_hut_tree_destroy(tree);
     return elapsed / (double)steps;
 }
 
@@ -130,27 +130,27 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    HpcsimError error;
-    hpcsim_error_clear(&error);
+    NBodySimProError error;
+    n_body_sim_pro_error_clear(&error);
 
-    HpcsimParticleSystem* particle_system =
-        hpcsim_particle_system_create(options.particle_count);
+    NBodySimProParticleSystem* particle_system =
+        n_body_sim_pro_particle_system_create(options.particle_count);
     if (particle_system == NULL) {
         fprintf(stderr, "failed to allocate particle system\n");
         return 1;
     }
-    HpcsimPresetParameters parameters = {options.particle_count, 42};
-    if (hpcsim_preset_generate(particle_system, HPCSIM_PRESET_RANDOM_CLOUD, &parameters,
-                               &error) != HPCSIM_STATUS_OK) {
+    NBodySimProPresetParameters parameters = {options.particle_count, 42};
+    if (n_body_sim_pro_preset_generate(particle_system, N_BODY_SIM_PRO_PRESET_RANDOM_CLOUD, &parameters,
+                               &error) != N_BODY_SIM_PRO_STATUS_OK) {
         fprintf(stderr, "failed to generate particles\n");
-        hpcsim_particle_system_destroy(particle_system);
+        n_body_sim_pro_particle_system_destroy(particle_system);
         return 1;
     }
 
-    HpcsimGravity gravity;
-    hpcsim_gravity_init(&gravity, 1.0, 0.01);
-    HpcsimParticleSystemView view;
-    hpcsim_particle_system_view(particle_system, &view, &error);
+    NBodySimProGravity gravity;
+    n_body_sim_pro_gravity_init(&gravity, 1.0, 0.01);
+    NBodySimProParticleSystemView view;
+    n_body_sim_pro_particle_system_view(particle_system, &view, &error);
 
     printf("particles=%zu steps=%d algorithm=%s\n", options.particle_count,
            options.steps, options.algorithm);
@@ -175,13 +175,13 @@ int main(int argc, char** argv) {
         const int thread_count = atoi(token_buffer);
         const int uses_threads = strstr(options.algorithm, "openmp") != NULL;
         if (uses_threads) {
-            hpcsim_threading_set_thread_count(thread_count);
+            n_body_sim_pro_threading_set_thread_count(thread_count);
         }
-        const int active_threads = uses_threads ? hpcsim_threading_thread_count() : 1;
+        const int active_threads = uses_threads ? n_body_sim_pro_threading_thread_count() : 1;
 
         const double seconds_per_evaluation = measure_force_evaluation(&gravity, &view, options.steps, options.algorithm, options.theta);
         if (seconds_per_evaluation < 0.0) {
-            hpcsim_particle_system_destroy(particle_system);
+            n_body_sim_pro_particle_system_destroy(particle_system);
             return 1;
         }
 
@@ -210,6 +210,6 @@ int main(int argc, char** argv) {
     }
 
     printf("%s", csv_line);
-    hpcsim_particle_system_destroy(particle_system);
+    n_body_sim_pro_particle_system_destroy(particle_system);
     return 0;
 }
