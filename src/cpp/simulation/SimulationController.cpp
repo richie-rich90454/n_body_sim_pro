@@ -73,9 +73,12 @@ void SimulationController::step() {
     HpcsimParticleSystemView view = particles_.view();
     HpcsimError error;
     hpcsim_error_clear(&error);
-    HpcsimStatus status = hpcsim_integrator_advance(
-        &view, &gravity_, integrator, timestep,
-        hpcsim_gravity_compute_acceleration_reference, &error);
+    HpcsimForceFunction force_function =
+        use_parallel_forces && hpcsim_threading_openmp_available()
+            ? hpcsim_gravity_compute_acceleration_openmp
+            : hpcsim_gravity_compute_acceleration_reference;
+    HpcsimStatus status = hpcsim_integrator_advance(&view, &gravity_, integrator, timestep,
+                                                    force_function, &error);
     if (status != HPCSIM_STATUS_OK) {
         throw std::runtime_error("SimulationController: integrator step failed");
     }
