@@ -180,6 +180,69 @@ void SimulationController::refresh_energy_diagnostics() {
     }
 }
 
+void SimulationController::save_checkpoint(const char* path) {
+    HpcsimCheckpointHeader header{};
+    header.magic = HPCSIM_CHECKPOINT_MAGIC;
+    header.version = HPCSIM_CHECKPOINT_VERSION;
+    header.particle_count = particles_.particle_count();
+    header.simulation_time = simulation_time;
+    header.timestep = timestep;
+    header.integrator = static_cast<int32_t>(integrator);
+    header.theta = barnes_hut_theta;
+    header.barnes_hut_enabled = barnes_hut_enabled ? 1 : 0;
+    header.random_seed = random_seed_;
+    header.preset = static_cast<int32_t>(preset_);
+
+    HpcsimParticleSystemView view = particles_.view();
+    HpcsimError error;
+    hpcsim_error_clear(&error);
+    const HpcsimStatus status =
+        hpcsim_checkpoint_write(path, &view, &header, &error);
+    if (status != HPCSIM_STATUS_OK) {
+        throw std::runtime_error(std::string("SimulationController: checkpoint write "
+                                             "failed: ") +
+                                 hpcsim_status_string(status));
+    }
+    HPCSIM_LOG(logging::Level::Info, logging::Category::Simulation,
+               "Checkpoint saved to %s (%zu particles, t=%.4f)", path,
+               header.particle_count, simulation_time);
+}
+
+void SimulationController::load_checkpoint(const char* path) {
+    HpcsimCheckpointHeader header{};
+    HpcsimError error;
+    hpcsim_error_clear(&error);
+    HpcsimStatus status = hpcsim_checkpoint_peek(path, &header, &error);
+    if (status != HPCSIM_STATUS_OK) {
+        throw std::runtime_error(std::string("SimulationController: checkpoint peek "
+                                             "failed: ") +
+                                 hpcsim_status_string(status));
+    }
+    ParticleSystem replacement(header.particle_count);
+    hpcsim_error_clear(&error);
+    status = hpcsim_checkpoint_read(path, &header, replacement.handle(), &error);
+    if (status != HPCSIM_STATUS_OK) {
+        throw std::runtime_error(std::string("SimulationController: checkpoint read "
+                                             "failed: ") +
+                                 hpcsim_status_string(status));
+    }
+
+    particles_ = std::move(replacement);
+    simulation_time = header.simulation_time;
+    timestep = header.timestep;
+    integrator = static_cast<HpcsimIntegratorType>(header.integrator);
+    barnes_hut_theta = header.theta;
+    barnes_hut_enabled = header.barnes_hut_enabled != 0;
+    random_seed_ = header.random_seed;
+    preset_ = static_cast<HpcsimSimulationPreset>(header.preset);
+
+    clear_trails();
+    reset_diagnostics_reference();
+    HPCSIM_LOG(logging::Level::Info, logging::Category::Simulation,
+               "Checkpoint loaded from %s (%zu particles, t=%.4f)", path,
+               header.particle_count, simulation_time);
+}
+
 void SimulationController::reset_diagnostics_reference() {
     HpcsimParticleSystemView view = particles_.view();
     HpcsimError error;
