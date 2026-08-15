@@ -49,6 +49,9 @@ public:
     /* Use the OpenMP-parallel force kernel when available. */
     bool use_parallel_forces = true;
 
+    /* The SIMD backend detected at construction (AVX2 or scalar). */
+    HpcsimSimdBackend simd_backend() const { return simd_backend_; }
+
     HpcsimIntegratorType integrator = HPCSIM_INTEGRATOR_LEAPFROG;
 
     double gravitational_constant() const { return gravitational_constant_; }
@@ -72,6 +75,7 @@ private:
     double gravitational_constant_ = 1.0;
     double softening_length_ = 0.0;
     HpcsimSimulationPreset preset_ = HPCSIM_PRESET_TWO_BODY;
+    HpcsimSimdBackend simd_backend_ = HPCSIM_SIMD_BACKEND_SCALAR;
     std::uint64_t random_seed_ = 0;
     std::array<std::vector<rendering::Vec3>, 2> trails_;
     static constexpr std::size_t TRAIL_CAPACITY = 4096;
