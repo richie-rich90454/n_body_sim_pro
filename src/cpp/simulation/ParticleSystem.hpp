@@ -44,7 +44,8 @@ public:
     /* Non-owning snapshot of the raw SoA storage for kernels and rendering. */
     HpcsimParticleSystemView view();
 
-    void* handle() const { return handle_; }
+    /* Raw C handle, for calling C-engine functions that need it. */
+    HpcsimParticleSystem* handle() const { return handle_; }
 
 private:
     void throw_if_failed(HpcsimStatus status, HpcsimError& error) const;
