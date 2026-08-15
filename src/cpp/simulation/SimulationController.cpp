@@ -1,22 +1,59 @@
 #include "simulation/SimulationController.hpp"
 
-#include <cmath>
+#include <stdexcept>
 
 namespace hpcsim {
-
-namespace {
-constexpr double PI = 3.14159265358979323846;
-}
 
 SimulationController::SimulationController() : particles_(2) {
     recompute_gravity_parameters();
     for (auto& trail : trails_) {
         trail.reserve(TRAIL_CAPACITY);
     }
-    initialize_two_body();
+    apply_preset(HPCSIM_PRESET_TWO_BODY, 2, 1);
 }
 
 SimulationController::~SimulationController() = default;
+
+void SimulationController::apply_preset(HpcsimSimulationPreset preset,
+                                        std::size_t particle_count,
+                                        std::uint64_t random_seed) {
+    if (particle_count == 0) {
+        throw std::runtime_error("SimulationController: preset particle count is zero");
+    }
+    ParticleSystem replacement(particle_count);
+
+    HpcsimPresetParameters parameters;
+    parameters.particle_count = particle_count;
+    parameters.random_seed = random_seed;
+
+    HpcsimError error;
+    hpcsim_error_clear(&error);
+    HpcsimStatus status = hpcsim_preset_generate(
+        replacement.handle(), preset, &parameters, &error);
+    if (status != HPCSIM_STATUS_OK) {
+        throw std::runtime_error(std::string("SimulationController: preset generation "
+                                             "failed: ") +
+                                 hpcsim_status_string(status));
+    }
+
+    particles_ = std::move(replacement);
+    preset_ = preset;
+    random_seed_ = random_seed;
+    simulation_time = 0.0;
+    clear_trails();
+    compute_initial_accelerations();
+}
+
+void SimulationController::compute_initial_accelerations() {
+    HpcsimParticleSystemView view = particles_.view();
+    HpcsimError error;
+    hpcsim_error_clear(&error);
+    HpcsimStatus status =
+        hpcsim_gravity_compute_acceleration_reference(&view, &gravity_, &error);
+    if (status != HPCSIM_STATUS_OK) {
+        throw std::runtime_error("SimulationController: failed to compute initial forces");
+    }
+}
 
 void SimulationController::recompute_gravity_parameters() {
     hpcsim_gravity_init(&gravity_, gravitational_constant_, softening_length_);
@@ -32,32 +69,6 @@ void SimulationController::set_softening_length(double value) {
     recompute_gravity_parameters();
 }
 
-void SimulationController::initialize_two_body() {
-    particles_.set_particle_count(2);
-
-    const double half_separation = 0.5;
-    const double per_body_speed = std::sqrt(2.0) / 2.0;
-
-    particles_.set_position(0, {-half_separation, 0.0, 0.0});
-    particles_.set_position(1, {half_separation, 0.0, 0.0});
-    particles_.set_velocity(0, {0.0, per_body_speed, 0.0});
-    particles_.set_velocity(1, {0.0, -per_body_speed, 0.0});
-    particles_.set_mass(0, 1.0);
-    particles_.set_mass(1, 1.0);
-
-    simulation_time = 0.0;
-    clear_trails();
-
-    HpcsimParticleSystemView view = particles_.view();
-    HpcsimError error;
-    hpcsim_error_clear(&error);
-    HpcsimStatus status =
-        hpcsim_gravity_compute_acceleration_reference(&view, &gravity_, &error);
-    if (status != HPCSIM_STATUS_OK) {
-        throw std::runtime_error("SimulationController: failed to compute initial forces");
-    }
-}
-
 void SimulationController::step() {
     HpcsimParticleSystemView view = particles_.view();
     HpcsimError error;
@@ -69,7 +80,9 @@ void SimulationController::step() {
         throw std::runtime_error("SimulationController: integrator step failed");
     }
     simulation_time += timestep;
-    record_trail_positions();
+    if (preset_ == HPCSIM_PRESET_TWO_BODY) {
+        record_trail_positions();
+    }
 }
 
 void SimulationController::record_trail_positions() {
