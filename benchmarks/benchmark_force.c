@@ -44,7 +44,7 @@ static double wall_time_seconds(void) {
 static void print_usage(const char* program_name) {
     fprintf(stderr,
             "Usage: %s --particles N --steps S [--threads T1,T2,..] [--algorithm "
-            "reference|openmp|avx2|openmp_avx2|barnes_hut] [--theta T]\n",
+            "reference|openmp|avx2|openmp_avx2|barnes_hut|barnes_hut_avx2|barnes_hut_openmp_avx2] [--theta T]\n",
             program_name);
 }
 
@@ -85,7 +85,9 @@ static double measure_force_evaluation(const HpcsimGravity* gravity,
     HpcsimError error;
     hpcsim_error_clear(&error);
     HpcsimBarnesHutTree* tree = NULL;
-    if (strcmp(algorithm, "barnes_hut") == 0) {
+    if (strcmp(algorithm, "barnes_hut") == 0 ||
+        strcmp(algorithm, "barnes_hut_avx2") == 0 ||
+        strcmp(algorithm, "barnes_hut_openmp_avx2") == 0) {
         tree = hpcsim_barnes_hut_tree_create(&error);
         if (tree == NULL) {
             fprintf(stderr, "failed to create Barnes-Hut tree\n");
@@ -104,6 +106,10 @@ static double measure_force_evaluation(const HpcsimGravity* gravity,
             status = hpcsim_gravity_compute_acceleration_avx2(view, gravity, NULL, &error);
         } else if (strcmp(algorithm, "openmp_avx2") == 0) {
             status = hpcsim_gravity_compute_acceleration_openmp_avx2(view, gravity, NULL, &error);
+        } else if (strcmp(algorithm, "barnes_hut_avx2") == 0) {
+            status = hpcsim_barnes_hut_compute_acceleration_avx2(view, gravity, tree, &error);
+        } else if (strcmp(algorithm, "barnes_hut_openmp_avx2") == 0) {
+            status = hpcsim_barnes_hut_compute_acceleration_openmp_avx2(view, gravity, tree, &error);
         } else if (strcmp(algorithm, "barnes_hut") == 0) {
             status = hpcsim_barnes_hut_compute_acceleration(view, gravity, tree, &error);
         }
