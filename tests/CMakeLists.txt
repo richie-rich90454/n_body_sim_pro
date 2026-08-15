@@ -7,6 +7,7 @@ set(HPCSIM_TESTS
     numerical/gravity_test
     numerical/diagnostics_test
     numerical/openmp_equivalence_test
+    numerical/simd_equivalence_test
     generation/random_test
     generation/presets_test
     regression/two_body_test)
