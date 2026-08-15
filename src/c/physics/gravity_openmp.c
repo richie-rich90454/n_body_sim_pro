@@ -22,12 +22,15 @@
 
 #ifndef _OPENMP
 HpcsimStatus hpcsim_gravity_compute_acceleration_openmp(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, HpcsimError* error) {
-    return hpcsim_gravity_compute_acceleration_reference(view, gravity, error);
+    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
+    HpcsimError* error) {
+    return hpcsim_gravity_compute_acceleration_reference(view, gravity, context, error);
 }
 #else
 HpcsimStatus hpcsim_gravity_compute_acceleration_openmp(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, HpcsimError* error) {
+    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
+    HpcsimError* error) {
+    (void)context;
     if (view == NULL || gravity == NULL) {
         hpcsim_error_set(error, HPCSIM_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
                          "view and gravity parameters must not be null");
