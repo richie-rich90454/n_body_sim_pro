@@ -6,7 +6,7 @@
 #include <cstdio>
 #include <stdexcept>
 
-namespace hpcsim::benchmark {
+namespace n_body_sim_pro::benchmark {
 
 namespace {
 double format_bytes(double bytes) {
@@ -16,7 +16,7 @@ double format_bytes(double bytes) {
 
 int run_headless(const HeadlessOptions& options, HeadlessReport& report) {
     if (options.threads > 0) {
-        hpcsim_threading_set_thread_count(options.threads);
+        n_body_sim_pro_threading_set_thread_count(options.threads);
     }
 
     SimulationController simulation;
@@ -67,7 +67,7 @@ int run_headless(const HeadlessOptions& options, HeadlessReport& report) {
 
 int resume_checkpoint(const char* path, int steps, int threads, HeadlessReport& report) {
     if (threads > 0) {
-        hpcsim_threading_set_thread_count(threads);
+        n_body_sim_pro_threading_set_thread_count(threads);
     }
 
     SimulationController simulation;
@@ -104,16 +104,16 @@ int resume_checkpoint(const char* path, int steps, int threads, HeadlessReport& 
 }
 
 void print_report(const HeadlessOptions& options, const HeadlessReport& report) {
-    const HpcsimCpuFeatures cpu = hpcsim_cpu_detect_features();
-    HpcsimMemoryEstimate memory;
-    hpcsim_error_clear(nullptr);
-    HpcsimError error;
-    hpcsim_error_clear(&error);
-    hpcsim_memory_estimate_simulation(options.particle_count, options.barnes_hut,
+    const NBodySimProCpuFeatures cpu = n_body_sim_pro_cpu_detect_features();
+    NBodySimProMemoryEstimate memory;
+    n_body_sim_pro_error_clear(nullptr);
+    NBodySimProError error;
+    n_body_sim_pro_error_clear(&error);
+    n_body_sim_pro_memory_estimate_simulation(options.particle_count, options.barnes_hut,
                                       &memory, &error);
 
-    std::printf("--- HPCSim headless benchmark ---\n");
-    std::printf("CPU            : %s\n", hpcsim_cpu_brand_string());
+    std::printf("--- N-Body Sim Pro headless benchmark ---\n");
+    std::printf("CPU            : %s\n", n_body_sim_pro_cpu_brand_string());
     std::printf("Architecture   : %s\n",
 #if defined(__x86_64__) || defined(_M_X64)
                 "x86-64"
@@ -126,7 +126,7 @@ void print_report(const HeadlessOptions& options, const HeadlessReport& report) 
     std::printf("SIMD           : AVX2 %s, AVX-512 %s, NEON %s\n",
                 cpu.has_avx2 ? "yes" : "no",
                 cpu.has_avx512_foundation ? "yes" : "no", cpu.has_neon ? "yes" : "no");
-    std::printf("OpenMP threads : %d\n", hpcsim_threading_thread_count());
+    std::printf("OpenMP threads : %d\n", n_body_sim_pro_threading_thread_count());
     std::printf("Particles      : %zu\n", options.particle_count);
     std::printf("Algorithm      : %s (theta %.2f)\n",
                 options.barnes_hut ? "barnes_hut" : "all-pairs", options.theta);
@@ -155,12 +155,12 @@ void print_report(const HeadlessOptions& options, const HeadlessReport& report) 
                 "\"threads\":%d,\"particles\":%zu,\"algorithm\":\"%s\",\"theta\":%.2f,"
                 "\"steps\":%d,\"estimated_bytes\":%zu,\"avg_step_ms\":%.6f,"
                 "\"first_step_ms\":%.6f,\"energy_drift\":%s,\"momentum_error\":%.6e}\n",
-                hpcsim_cpu_brand_string(), cpu.has_avx2 ? "true" : "false",
+                n_body_sim_pro_cpu_brand_string(), cpu.has_avx2 ? "true" : "false",
                 cpu.has_avx512_foundation ? "true" : "false", cpu.has_neon ? "true" : "false",
-                hpcsim_threading_thread_count(), options.particle_count,
+                n_body_sim_pro_threading_thread_count(), options.particle_count,
                 options.barnes_hut ? "barnes_hut" : "all-pairs", options.theta,
                 options.steps, memory.total_bytes, report.average_step_ms,
                 report.first_step_ms, energy_drift_string.c_str(), report.momentum_error);
 }
 
-}  // namespace hpcsim::benchmark
+}  // namespace n_body_sim_pro::benchmark

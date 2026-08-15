@@ -3,7 +3,7 @@
 #include "rendering/Camera.hpp"
 #include "simulation/SimulationController.hpp"
 
-namespace hpcsim::ui {
+namespace n_body_sim_pro::ui {
 
 /*
  * Dear ImGui panels for the technical interface.
@@ -33,4 +33,4 @@ private:
     float steps_per_frame_ = 1.0f;
 };
 
-}  // namespace hpcsim::ui
+}  // namespace n_body_sim_pro::ui

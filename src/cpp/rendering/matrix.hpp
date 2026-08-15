@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-namespace hpcsim::rendering {
+namespace n_body_sim_pro::rendering {
 
 /*
  * Minimal column-major 4x4 matrix helpers for camera and projection math.
@@ -102,4 +102,4 @@ inline Mat4 mat4_look_at(Vec3 eye, Vec3 center, Vec3 up) {
     return result;
 }
 
-}  // namespace hpcsim::rendering
+}  // namespace n_body_sim_pro::rendering

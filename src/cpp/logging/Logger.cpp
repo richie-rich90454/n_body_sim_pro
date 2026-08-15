@@ -5,7 +5,7 @@
 #include <cstdio>
 #include <thread>
 
-namespace hpcsim::logging {
+namespace n_body_sim_pro::logging {
 
 namespace {
 double monotonic_seconds() {
@@ -143,4 +143,4 @@ std::size_t Logger::record_count() const {
     return buffer_count_;
 }
 
-}  // namespace hpcsim::logging
+}  // namespace n_body_sim_pro::logging

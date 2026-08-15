@@ -1,13 +1,13 @@
 #include "rendering/Renderer.hpp"
 
-#include <hpcsim/hpcsim.h>
+#include <n_body_sim_pro/n_body_sim_pro.h>
 
 #include <cstdio>
 #include <cstring>
 #include <stdexcept>
 #include <vector>
 
-namespace hpcsim::rendering {
+namespace n_body_sim_pro::rendering {
 
 static const char* const POINT_VERTEX_SHADER = R"GLSL(
 #version 330 core
@@ -105,7 +105,7 @@ void Renderer::clear() const {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
-void Renderer::upload_particles(const HpcsimParticleSystemView& view) {
+void Renderer::upload_particles(const NBodySimProParticleSystemView& view) {
     const std::size_t particle_count = view.particle_count;
     const GLsizei required_bytes =
         static_cast<GLsizei>(particle_count * 3u * sizeof(float));
@@ -217,4 +217,4 @@ Renderer::ShaderProgram Renderer::compile_program(const char* vertex_source,
     return result;
 }
 
-}  // namespace hpcsim::rendering
+}  // namespace n_body_sim_pro::rendering

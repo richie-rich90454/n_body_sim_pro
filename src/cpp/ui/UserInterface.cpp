@@ -7,7 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace hpcsim::ui {
+namespace n_body_sim_pro::ui {
 
 namespace {
 constexpr std::size_t PARTICLE_COUNT_OPTIONS = 5;
@@ -22,7 +22,7 @@ int UserInterface::draw(SimulationController& simulation, rendering::Camera& cam
         steps_to_run = static_cast<int>(steps_per_frame_);
     }
 
-    if (ImGui::Begin("HPCSim", nullptr,
+    if (ImGui::Begin("N-Body Sim Pro", nullptr,
                      ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize)) {
         draw_simulation_panel(simulation);
         draw_numerics_panel(simulation);
@@ -73,12 +73,12 @@ void UserInterface::draw_simulation_panel(SimulationController& simulation) {
         "Two Body",         "Random Cloud",   "Solar System",     "Open Cluster",
         "Globular Cluster", "Spiral Galaxy",  "Elliptical Galaxy", "Galaxy Collision",
         "Triple Galaxy"};
-    static const HpcsimSimulationPreset preset_values[] = {
-        HPCSIM_PRESET_TWO_BODY,      HPCSIM_PRESET_RANDOM_CLOUD,
-        HPCSIM_PRESET_SOLAR_SYSTEM,  HPCSIM_PRESET_OPEN_CLUSTER,
-        HPCSIM_PRESET_GLOBULAR_CLUSTER, HPCSIM_PRESET_SPIRAL_GALAXY,
-        HPCSIM_PRESET_ELLIPTICAL_GALAXY, HPCSIM_PRESET_GALAXY_COLLISION,
-        HPCSIM_PRESET_TRIPLE_GALAXY};
+    static const NBodySimProSimulationPreset preset_values[] = {
+        N_BODY_SIM_PRO_PRESET_TWO_BODY,      N_BODY_SIM_PRO_PRESET_RANDOM_CLOUD,
+        N_BODY_SIM_PRO_PRESET_SOLAR_SYSTEM,  N_BODY_SIM_PRO_PRESET_OPEN_CLUSTER,
+        N_BODY_SIM_PRO_PRESET_GLOBULAR_CLUSTER, N_BODY_SIM_PRO_PRESET_SPIRAL_GALAXY,
+        N_BODY_SIM_PRO_PRESET_ELLIPTICAL_GALAXY, N_BODY_SIM_PRO_PRESET_GALAXY_COLLISION,
+        N_BODY_SIM_PRO_PRESET_TRIPLE_GALAXY};
     constexpr int preset_count = 9;
 
     static int particle_count_index = 1;
@@ -87,7 +87,7 @@ void UserInterface::draw_simulation_panel(SimulationController& simulation) {
         "1,024", "4,096", "16,384", "65,536", "262,144"};
 
     if (ImGui::Combo("Preset", &preset_index, preset_names, preset_count)) {
-        if (preset_values[preset_index] == HPCSIM_PRESET_TWO_BODY) {
+        if (preset_values[preset_index] == N_BODY_SIM_PRO_PRESET_TWO_BODY) {
             particle_count_index = 0;
         }
     }
@@ -122,7 +122,7 @@ void UserInterface::draw_simulation_panel(SimulationController& simulation) {
         if (ImGui::SliderFloat("BH theta", &theta, 0.1f, 2.0f, "%.2f")) {
             simulation.barnes_hut_theta = theta;
         }
-        HpcsimBarnesHutStats stats;
+        NBodySimProBarnesHutStats stats;
         if (simulation.barnes_hut_stats(&stats)) {
             ImGui::Text("Tree nodes    : %zu", stats.node_count);
             ImGui::Text("Leaves        : %zu", stats.leaf_count);
@@ -136,7 +136,7 @@ void UserInterface::draw_simulation_panel(SimulationController& simulation) {
     const char* integrator_names[] = {"Euler", "Leapfrog", "Velocity Verlet"};
     int integrator_index = static_cast<int>(simulation.integrator);
     if (ImGui::Combo("Integrator", &integrator_index, integrator_names, 3)) {
-        simulation.integrator = static_cast<HpcsimIntegratorType>(integrator_index);
+        simulation.integrator = static_cast<NBodySimProIntegratorType>(integrator_index);
     }
 
     ImGui::SliderFloat("Steps / frame", &steps_per_frame_, 0.0f, 200.0f, "%.1f");
@@ -151,14 +151,14 @@ void UserInterface::draw_simulation_panel(SimulationController& simulation) {
 
     ImGui::Separator();
 
-    if (hpcsim_threading_openmp_available()) {
+    if (n_body_sim_pro_threading_openmp_available()) {
         static int thread_count_index = 0;
-        const int available_threads = hpcsim_threading_available_thread_count();
+        const int available_threads = n_body_sim_pro_threading_available_thread_count();
         const char* thread_labels[] = {"Auto", "1", "2", "4", "8", "16", "32", "64"};
         const int thread_values[] = {0, 1, 2, 4, 8, 16, 32, 64};
         if (ImGui::Combo("OpenMP threads", &thread_count_index, thread_labels,
                          static_cast<int>(sizeof(thread_labels) / sizeof(thread_labels[0])))) {
-            hpcsim_threading_set_thread_count(thread_values[thread_count_index]);
+            n_body_sim_pro_threading_set_thread_count(thread_values[thread_count_index]);
         }
         ImGui::Text("Available threads : %d", available_threads);
     } else {
@@ -196,10 +196,10 @@ void UserInterface::draw_performance_panel(SimulationController& simulation,
     } else {
         ImGui::Text("Force (step)  : %.3f ms", simulation.last_force_evaluation_ms());
     }
-    const HpcsimCpuFeatures cpu_features = hpcsim_cpu_detect_features();
+    const NBodySimProCpuFeatures cpu_features = n_body_sim_pro_cpu_detect_features();
     ImGui::Text("SIMD backend  : %s",
-                hpcsim_simd_backend_string(simulation.simd_backend()));
-    ImGui::Text("CPU           : %s", hpcsim_cpu_brand_string());
+                n_body_sim_pro_simd_backend_string(simulation.simd_backend()));
+    ImGui::Text("CPU           : %s", n_body_sim_pro_cpu_brand_string());
     ImGui::Text("AVX2          : %s",
                 cpu_features.has_avx2 ? "available" : "unavailable");
     ImGui::Text("AVX-512       : %s",
@@ -212,8 +212,8 @@ void UserInterface::draw_memory_panel() {
     if (!ImGui::CollapsingHeader("Memory")) {
         return;
     }
-    HpcsimAllocationSummary summary;
-    if (hpcsim_allocation_tracker_poll(&summary) != 0) {
+    NBodySimProAllocationSummary summary;
+    if (n_body_sim_pro_allocation_tracker_poll(&summary) != 0) {
         ImGui::TextDisabled("Allocation tracking unavailable");
         return;
     }
@@ -231,7 +231,7 @@ void UserInterface::draw_memory_panel() {
                                     "Temporary", "Checkpoint", "Renderer", "UI",
                                     "Other"};
     if (ImGui::TreeNode("By category")) {
-        for (int category = 0; category < HPCSIM_ALLOCATION_CATEGORY_COUNT; ++category) {
+        for (int category = 0; category < N_BODY_SIM_PRO_ALLOCATION_CATEGORY_COUNT; ++category) {
             ImGui::Text("%-18s: %6zu allocs, %10.2f MiB", category_names[category],
                         summary.live_allocations_by_category[category],
                         (double)summary.live_bytes_by_category[category] / (1024.0 * 1024.0));
@@ -295,4 +295,4 @@ void UserInterface::draw_developer_console() {
     ImGui::End();
 }
 
-}  // namespace hpcsim::ui
+}  // namespace n_body_sim_pro::ui

@@ -1,11 +1,11 @@
 #pragma once
 
-#include <hpcsim/hpcsim.h>
+#include <n_body_sim_pro/n_body_sim_pro.h>
 
 #include <cstddef>
 #include <cstdint>
 
-namespace hpcsim::benchmark {
+namespace n_body_sim_pro::benchmark {
 
 /*
  * Headless simulation runner.
@@ -17,7 +17,7 @@ namespace hpcsim::benchmark {
  */
 
 struct HeadlessOptions {
-    HpcsimSimulationPreset preset = HPCSIM_PRESET_GALAXY_COLLISION;
+    NBodySimProSimulationPreset preset = N_BODY_SIM_PRO_PRESET_GALAXY_COLLISION;
     std::size_t particle_count = 65536;
     std::uint64_t random_seed = 42;
     int steps = 100;
@@ -46,4 +46,4 @@ int resume_checkpoint(const char* path, int steps, int threads, HeadlessReport& 
 /* Prints the report in human-readable and JSON forms. */
 void print_report(const HeadlessOptions& options, const HeadlessReport& report);
 
-}  // namespace hpcsim::benchmark
+}  // namespace n_body_sim_pro::benchmark

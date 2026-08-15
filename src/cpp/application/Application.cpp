@@ -11,12 +11,12 @@
 #include <cstdio>
 #include <exception>
 
-namespace hpcsim::application {
+namespace n_body_sim_pro::application {
 
 namespace {
 constexpr int INITIAL_WINDOW_WIDTH = 1600;
 constexpr int INITIAL_WINDOW_HEIGHT = 900;
-const char* const WINDOW_TITLE = "HPCSim - CPU N-Body Simulation Engine";
+const char* const WINDOW_TITLE = "N-Body Sim Pro - CPU N-Body Simulation Engine";
 }
 
 Application::Application()
@@ -28,7 +28,7 @@ Application::~Application() {
 
 int Application::run() {
     if (!initialize_sdl() || !initialize_opengl() || !initialize_imgui()) {
-        std::fprintf(stderr, "HPCSim: initialization failed, exiting.\n");
+        std::fprintf(stderr, "N-Body Sim Pro: initialization failed, exiting.\n");
         return 1;
     }
 
@@ -68,15 +68,15 @@ int Application::run() {
 }
 
 bool Application::initialize_sdl() {
-#ifdef HPCSIM_DEVELOPER_MODE
-    hpcsim_allocation_tracker_set_enabled(1);
-    HPCSIM_LOG(logging::Level::Info, logging::Category::Memory,
+#ifdef N_BODY_SIM_PRO_DEVELOPER_MODE
+    n_body_sim_pro_allocation_tracker_set_enabled(1);
+    N_BODY_SIM_PRO_LOG(logging::Level::Info, logging::Category::Memory,
                "Allocation tracking enabled (developer mode)");
 #endif
-    HPCSIM_LOG(logging::Level::Info, logging::Category::Application,
+    N_BODY_SIM_PRO_LOG(logging::Level::Info, logging::Category::Application,
                "Initializing SDL3 video subsystem");
     if (!SDL_Init(SDL_INIT_VIDEO)) {
-        std::fprintf(stderr, "HPCSim: SDL_Init failed: %s\n", SDL_GetError());
+        std::fprintf(stderr, "N-Body Sim Pro: SDL_Init failed: %s\n", SDL_GetError());
         return false;
     }
 
@@ -91,7 +91,7 @@ bool Application::initialize_sdl() {
                                SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE |
                                    SDL_WINDOW_HIGH_PIXEL_DENSITY);
     if (window_ == nullptr) {
-        std::fprintf(stderr, "HPCSim: SDL_CreateWindow failed: %s\n", SDL_GetError());
+        std::fprintf(stderr, "N-Body Sim Pro: SDL_CreateWindow failed: %s\n", SDL_GetError());
         return false;
     }
     return true;
@@ -100,7 +100,7 @@ bool Application::initialize_sdl() {
 bool Application::initialize_opengl() {
     gl_context_ = SDL_GL_CreateContext(window_);
     if (gl_context_ == nullptr) {
-        std::fprintf(stderr, "HPCSim: SDL_GL_CreateContext failed: %s\n", SDL_GetError());
+        std::fprintf(stderr, "N-Body Sim Pro: SDL_GL_CreateContext failed: %s\n", SDL_GetError());
         return false;
     }
     SDL_GL_MakeCurrent(window_, gl_context_);
@@ -108,12 +108,12 @@ bool Application::initialize_opengl() {
 
     const GLenum glew_status = glewInit();
     if (glew_status != GLEW_OK) {
-        std::fprintf(stderr, "HPCSim: glewInit failed: %s\n",
+        std::fprintf(stderr, "N-Body Sim Pro: glewInit failed: %s\n",
                      reinterpret_cast<const char*>(glewGetErrorString(glew_status)));
         return false;
     }
 
-    std::printf("HPCSim: OpenGL %s, GLSL %s\n", glGetString(GL_VERSION),
+    std::printf("N-Body Sim Pro: OpenGL %s, GLSL %s\n", glGetString(GL_VERSION),
                 glGetString(GL_SHADING_LANGUAGE_VERSION));
 
     renderer_ = std::make_unique<rendering::Renderer>();
@@ -131,15 +131,15 @@ bool Application::initialize_imgui() {
     style.WindowPadding = ImVec2(10.0f, 8.0f);
 
     ImGuiIO& io = ImGui::GetIO();
-    io.IniFilename = "hpcsim_imgui.ini";
+    io.IniFilename = "n_body_sim_pro_imgui.ini";
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
     if (!ImGui_ImplSDL3_InitForOpenGL(window_, gl_context_)) {
-        std::fprintf(stderr, "HPCSim: ImGui SDL3 backend init failed\n");
+        std::fprintf(stderr, "N-Body Sim Pro: ImGui SDL3 backend init failed\n");
         return false;
     }
     if (!ImGui_ImplOpenGL3_Init("#version 330 core")) {
-        std::fprintf(stderr, "HPCSim: ImGui OpenGL3 backend init failed\n");
+        std::fprintf(stderr, "N-Body Sim Pro: ImGui OpenGL3 backend init failed\n");
         return false;
     }
     return true;
@@ -199,7 +199,7 @@ void Application::render_frame() {
     renderer_->upload_particles(simulation_.particle_system().view());
     renderer_->draw_particles(view, projection);
 
-    if (user_interface_.show_trails && simulation_.preset() == HPCSIM_PRESET_TWO_BODY) {
+    if (user_interface_.show_trails && simulation_.preset() == N_BODY_SIM_PRO_PRESET_TWO_BODY) {
         const auto& trails = simulation_.trails();
         renderer_->draw_line_strip(trails[0], {0.75f, 0.85f, 1.0f}, view, projection);
         renderer_->draw_line_strip(trails[1], {1.0f, 0.75f, 0.65f}, view, projection);
@@ -222,4 +222,4 @@ void Application::shutdown() {
     SDL_Quit();
 }
 
-}  // namespace hpcsim::application
+}  // namespace n_body_sim_pro::application

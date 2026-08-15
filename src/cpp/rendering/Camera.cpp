@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <numbers>
 
-namespace hpcsim::rendering {
+namespace n_body_sim_pro::rendering {
 
 Camera::Camera() : target_{0.0f, 0.0f, 0.0f},
                    yaw_(0.0f),
@@ -71,4 +71,4 @@ Mat4 Camera::projection_matrix() const {
     return mat4_perspective(field_of_view_y_radians, aspect, NEAR_PLANE, FAR_PLANE);
 }
 
-}  // namespace hpcsim::rendering
+}  // namespace n_body_sim_pro::rendering

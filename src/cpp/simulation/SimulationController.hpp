@@ -3,7 +3,7 @@
 #include "rendering/matrix.hpp"
 #include "simulation/ParticleSystem.hpp"
 
-#include <hpcsim/hpcsim.h>
+#include <n_body_sim_pro/n_body_sim_pro.h>
 
 #include <array>
 #include <cstddef>
@@ -11,7 +11,7 @@
 #include <memory>
 #include <vector>
 
-namespace hpcsim {
+namespace n_body_sim_pro {
 
 /* Conservation quantities refreshed from the particle state each step. */
 struct NumericalDiagnostics {
@@ -40,7 +40,7 @@ public:
     SimulationController& operator=(const SimulationController&) = delete;
 
     /* (Re)initialize the simulation from a preset. */
-    void apply_preset(HpcsimSimulationPreset preset, std::size_t particle_count,
+    void apply_preset(NBodySimProSimulationPreset preset, std::size_t particle_count,
                       std::uint64_t random_seed);
 
     /* Advance the system by one timestep using the configured integrator. */
@@ -49,7 +49,7 @@ public:
     ParticleSystem& particle_system() { return particles_; }
     const ParticleSystem& particle_system() const { return particles_; }
 
-    HpcsimSimulationPreset preset() const { return preset_; }
+    NBodySimProSimulationPreset preset() const { return preset_; }
     std::uint64_t random_seed() const { return random_seed_; }
 
     bool running = true;
@@ -70,20 +70,20 @@ public:
     bool use_simd_barnes_hut = false;
 
     /* The SIMD backend detected at construction (AVX2 or scalar). */
-    HpcsimSimdBackend simd_backend() const { return simd_backend_; }
+    NBodySimProSimdBackend simd_backend() const { return simd_backend_; }
 
-    HpcsimIntegratorType integrator = HPCSIM_INTEGRATOR_LEAPFROG;
+    NBodySimProIntegratorType integrator = N_BODY_SIM_PRO_INTEGRATOR_LEAPFROG;
 
     double gravitational_constant() const { return gravitational_constant_; }
     double softening_length() const { return softening_length_; }
     void set_gravitational_constant(double value);
     void set_softening_length(double value);
 
-    const HpcsimGravity& gravity() const { return gravity_; }
+    const NBodySimProGravity& gravity() const { return gravity_; }
 
     /* Statistics from the most recent Barnes-Hut force evaluation. */
-    bool barnes_hut_stats(HpcsimBarnesHutStats* stats) const {
-        return hpcsim_barnes_hut_tree_stats(tree_.get(), stats) == 0;
+    bool barnes_hut_stats(NBodySimProBarnesHutStats* stats) const {
+        return n_body_sim_pro_barnes_hut_tree_stats(tree_.get(), stats) == 0;
     }
 
     /* Timing of the most recent step, in milliseconds. */
@@ -116,17 +116,17 @@ private:
     void record_trail_positions();
     void refresh_numerical_diagnostics();
     void reset_diagnostics_reference();
-    HpcsimForceFunction select_force_function(void*& force_context) const;
-    HpcsimBarnesHutTree* barnes_hut_tree();
+    NBodySimProForceFunction select_force_function(void*& force_context) const;
+    NBodySimProBarnesHutTree* barnes_hut_tree();
 
     ParticleSystem particles_;
-    HpcsimGravity gravity_;
-    std::unique_ptr<HpcsimBarnesHutTree, void (*)(HpcsimBarnesHutTree*)> tree_{
-        nullptr, hpcsim_barnes_hut_tree_destroy};
+    NBodySimProGravity gravity_;
+    std::unique_ptr<NBodySimProBarnesHutTree, void (*)(NBodySimProBarnesHutTree*)> tree_{
+        nullptr, n_body_sim_pro_barnes_hut_tree_destroy};
     double gravitational_constant_ = 1.0;
     double softening_length_ = 0.0;
-    HpcsimSimulationPreset preset_ = HPCSIM_PRESET_TWO_BODY;
-    HpcsimSimdBackend simd_backend_ = HPCSIM_SIMD_BACKEND_SCALAR;
+    NBodySimProSimulationPreset preset_ = N_BODY_SIM_PRO_PRESET_TWO_BODY;
+    NBodySimProSimdBackend simd_backend_ = N_BODY_SIM_PRO_SIMD_BACKEND_SCALAR;
     std::uint64_t random_seed_ = 0;
     std::array<std::vector<rendering::Vec3>, 2> trails_;
     static constexpr std::size_t TRAIL_CAPACITY = 4096;
@@ -135,12 +135,12 @@ private:
     double last_tree_build_ms_ = 0.0;
     double last_force_evaluation_ms_ = 0.0;
     NumericalDiagnostics diagnostics_;
-    HpcsimVector3 initial_momentum_{0.0, 0.0, 0.0};
-    HpcsimVector3 initial_center_of_mass_{0.0, 0.0, 0.0};
+    NBodySimProVector3 initial_momentum_{0.0, 0.0, 0.0};
+    NBodySimProVector3 initial_center_of_mass_{0.0, 0.0, 0.0};
     double initial_total_energy_ = 0.0;
     double momentum_scale_ = 1.0;
     int energy_tracking_steps_ = 0;
     static constexpr int ENERGY_TRACK_INTERVAL = 60;
 };
 
-}  // namespace hpcsim
+}  // namespace n_body_sim_pro

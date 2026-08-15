@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace hpcsim::logging {
+namespace n_body_sim_pro::logging {
 
 /*
  * Structured logging for the application layer.
@@ -101,11 +101,11 @@ private:
  * Convenience helpers. Each is guarded by Logger::is_enabled so a disabled
  * level compiles to a fast level check.
  */
-#define HPCSIM_LOG(level, category, ...)                                           \
+#define N_BODY_SIM_PRO_LOG(level, category, ...)                                           \
     do {                                                                           \
-        if (hpcsim::logging::Logger::instance().is_enabled(level)) {               \
-            hpcsim::logging::Logger::instance().log(level, category, __VA_ARGS__); \
+        if (n_body_sim_pro::logging::Logger::instance().is_enabled(level)) {               \
+            n_body_sim_pro::logging::Logger::instance().log(level, category, __VA_ARGS__); \
         }                                                                          \
     } while (0)
 
-}  // namespace hpcsim::logging
+}  // namespace n_body_sim_pro::logging

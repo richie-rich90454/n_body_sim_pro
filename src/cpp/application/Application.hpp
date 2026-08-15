@@ -9,7 +9,7 @@
 
 #include <memory>
 
-namespace hpcsim::application {
+namespace n_body_sim_pro::application {
 
 /*
  * Application lifecycle: SDL3 window, OpenGL core context, Dear ImGui,
@@ -51,4 +51,4 @@ private:
     float frame_rate_ = 0.0f;
 };
 
-}  // namespace hpcsim::application
+}  // namespace n_body_sim_pro::application

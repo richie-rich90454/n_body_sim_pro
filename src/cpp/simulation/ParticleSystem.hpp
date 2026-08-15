@@ -1,15 +1,15 @@
 #pragma once
 
-#include <hpcsim/hpcsim.h>
+#include <n_body_sim_pro/n_body_sim_pro.h>
 
 #include <cstddef>
 #include <stdexcept>
 #include <string>
 
-namespace hpcsim {
+namespace n_body_sim_pro {
 
 /*
- * RAII wrapper around the C engine's HpcsimParticleSystem.
+ * RAII wrapper around the C engine's NBodySimProParticleSystem.
  *
  * Owns the underlying C object; copy is disabled, move transfers ownership.
  * C-level failures are surfaced as std::runtime_error with the error message
@@ -31,26 +31,26 @@ public:
     std::size_t capacity() const;
 
     void set_particle_count(std::size_t count);
-    void set_position(std::size_t index, HpcsimVector3 position);
-    void set_velocity(std::size_t index, HpcsimVector3 velocity);
-    void set_acceleration(std::size_t index, HpcsimVector3 acceleration);
+    void set_position(std::size_t index, NBodySimProVector3 position);
+    void set_velocity(std::size_t index, NBodySimProVector3 velocity);
+    void set_acceleration(std::size_t index, NBodySimProVector3 acceleration);
     void set_mass(std::size_t index, double mass);
 
-    HpcsimVector3 position(std::size_t index) const;
-    HpcsimVector3 velocity(std::size_t index) const;
-    HpcsimVector3 acceleration(std::size_t index) const;
+    NBodySimProVector3 position(std::size_t index) const;
+    NBodySimProVector3 velocity(std::size_t index) const;
+    NBodySimProVector3 acceleration(std::size_t index) const;
     double mass(std::size_t index) const;
 
     /* Non-owning snapshot of the raw SoA storage for kernels and rendering. */
-    HpcsimParticleSystemView view();
+    NBodySimProParticleSystemView view();
 
     /* Raw C handle, for calling C-engine functions that need it. */
-    HpcsimParticleSystem* handle() const { return handle_; }
+    NBodySimProParticleSystem* handle() const { return handle_; }
 
 private:
-    void throw_if_failed(HpcsimStatus status, HpcsimError& error) const;
+    void throw_if_failed(NBodySimProStatus status, NBodySimProError& error) const;
 
-    HpcsimParticleSystem* handle_;
+    NBodySimProParticleSystem* handle_;
 };
 
-}  // namespace hpcsim
+}  // namespace n_body_sim_pro

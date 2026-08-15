@@ -2,14 +2,14 @@
 
 #include "rendering/matrix.hpp"
 
-#include <hpcsim/hpcsim.h>
+#include <n_body_sim_pro/n_body_sim_pro.h>
 
 #include <GL/glew.h>
 
 #include <cstddef>
 #include <vector>
 
-namespace hpcsim::rendering {
+namespace n_body_sim_pro::rendering {
 
 /*
  * OpenGL renderer for particle positions.
@@ -28,7 +28,7 @@ public:
     Renderer(const Renderer&) = delete;
     Renderer& operator=(const Renderer&) = delete;
 
-    void upload_particles(const HpcsimParticleSystemView& view);
+    void upload_particles(const NBodySimProParticleSystemView& view);
     void draw_particles(const Mat4& view_matrix, const Mat4& projection_matrix) const;
 
     void draw_line_strip(const std::vector<Vec3>& points, Vec3 color, const Mat4& view_matrix,
@@ -64,4 +64,4 @@ private:
     std::size_t uploaded_particle_count_;
 };
 
-}  // namespace hpcsim::rendering
+}  // namespace n_body_sim_pro::rendering

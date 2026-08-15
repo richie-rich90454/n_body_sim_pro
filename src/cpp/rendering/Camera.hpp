@@ -2,7 +2,7 @@
 
 #include "rendering/matrix.hpp"
 
-namespace hpcsim::rendering {
+namespace n_body_sim_pro::rendering {
 
 /*
  * Orbit camera: the camera sits on a sphere around a target point, at a
@@ -44,4 +44,4 @@ private:
     static constexpr float FAR_PLANE = 100000.0f;
 };
 
-}  // namespace hpcsim::rendering
+}  // namespace n_body_sim_pro::rendering
