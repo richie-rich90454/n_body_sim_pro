@@ -1,3 +1,8 @@
+---
+title: Performance Overview
+description: Measured performance of every kernel — all-pairs, Barnes-Hut, SIMD, OpenMP scaling, and MPI — with reproducible commands.
+---
+
 # Performance
 
 Every number on this page was measured on the development machine — an
@@ -6,22 +11,23 @@ MSYS2 GCC 16, Release build — and is reproducible with the commands shown.
 
 ## Methodology
 
-- `benchmark` times a single **force evaluation** over `--steps` runs using a
-  monotonic clock. It is headless; rendering is never involved.
+- The force-kernel tables below were produced with the standalone
+  `n_body_sim_pro_benchmark` binary, which times a single **force
+  evaluation** over `--steps` runs using a monotonic clock. It is headless;
+  rendering is never involved.
 - Thread scaling runs are sequential (each thread count timed separately),
   so there is no interference between them.
 - Speedup and parallel efficiency are computed from the measured single
   thread baseline.
-- Machine-readable JSON is printed as the final line for regression
-  tracking.
+- A machine-readable CSV line is printed last for regression tracking.
 
 Reproduce with:
 
 ```bash
-n_body_sim_pro benchmark --particles 16384 --steps 3 --algorithm reference --threads 1
-n_body_sim_pro benchmark --particles 16384 --steps 3 --algorithm avx2 --threads 1
-n_body_sim_pro benchmark --particles 16384 --steps 3 --algorithm openmp_avx2 --threads 1,2,4,8,16
-n_body_sim_pro benchmark --particles 1000000 --steps 3 --algorithm barnes_hut --threads 16
+n_body_sim_pro_benchmark --particles 16384 --steps 3 --algorithm reference --threads 1
+n_body_sim_pro_benchmark --particles 16384 --steps 3 --algorithm avx2 --threads 1
+n_body_sim_pro_benchmark --particles 16384 --steps 3 --algorithm openmp_avx2 --threads 1,2,4,8,16
+n_body_sim_pro_benchmark --particles 1000000 --steps 3 --algorithm barnes_hut --threads 16
 ```
 
 ## All-pairs kernels (16,384 particles)
