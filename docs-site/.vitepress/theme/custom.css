@@ -40,7 +40,7 @@
   --vp-c-warning-1: var(--hpcsim-warn);
   --vp-c-danger-1: var(--hpcsim-err);
   --vp-c-tip-1: var(--hpcsim-ok);
-  --vp-font-family-base: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --vp-font-family-base: "Noto Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --vp-font-family-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --vp-code-font-size: 0.87em;
   --vp-code-block-bg: #0f0f17;
