@@ -123,3 +123,35 @@ benchmark validity.
 Physics never depends on OpenGL. The controller owns the particle system;
 the renderer uploads a snapshot of positions each frame and draws them as
 `GL_POINTS` plus line strips. Rendering never mutates simulation state.
+
+## NUMA
+
+The engine detects the NUMA topology (Windows `GetNuma*` API, Linux sysfs),
+can pin threads according to a Compact/Spread policy, and provides a
+first-touch helper. Particle generation can run in parallel with OpenMP,
+where each thread writes its own slice of the SoA arrays — which is both a
+parallel generation and a NUMA first-touch placement. On the single-node
+development machine NUMA reports one node and placement is a no-op; the code
+path is real and does the right thing on multi-socket systems.
+
+## MPI distributed execution
+
+When built with MPI (`HPCSIM_ENABLE_MPI`), the engine can run headless
+across ranks (`mpiexec -n P hpcsim distributed`). Particles are partitioned
+into contiguous blocks per rank. Each force evaluation:
+
+1. builds a local Morton-ordered tree over this rank's block,
+2. exchanges a **local essential tree** — the coarse cells of every other
+   rank's tree that this rank's particles would actually traverse, refined
+   level by level via `MPI_Allgatherv` until no rank needs finer detail
+   (`MPI_Allreduce` termination),
+3. walks the local tree and the remote essential forest sequentially and
+   writes accelerations for this rank's particles.
+
+Every rank holds a distinct particle block and real messages move the tree
+cells — this is not a simulated single-process "distributed" mode. The
+essential-tree guarantee is that any cell a particle descends into has its
+children present, which the equivalence test verifies against the
+single-rank Barnes-Hut result within the theta tolerance. The per-rank
+stats panel reports real remote-cell counts, exchange levels, and
+communication/computation times.
