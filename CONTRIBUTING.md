@@ -34,7 +34,10 @@
    zero warnings.
 3. Run `ctest --test-dir build/debug` — all tests must pass.
 4. Run the `sanitizer` preset for memory-sensitive changes
-   (`cmake --preset sanitizer && ctest --test-dir build/sanitizer`).
+   (`cmake --preset sanitizer && ctest --test-dir build/sanitizer`). The
+   preset requires a toolchain with ASan runtimes (GCC with libasan, or
+   Clang with compiler-rt); the MSYS2 ucrt64 GCC does not ship libasan, so
+   on Windows use the clang64 toolchain.
 5. Benchmark performance-sensitive changes and record the numbers in
    `docs/performance/benchmarks.md`.
 
