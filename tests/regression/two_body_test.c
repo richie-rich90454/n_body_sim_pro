@@ -71,7 +71,7 @@ static double relative_energy_drift_after_orbit(HpcsimIntegratorType integrator,
 
     HpcsimParticleSystemView view;
     hpcsim_particle_system_view(particle_system, &view, &error);
-    hpcsim_gravity_compute_acceleration_reference(&view, &gravity, &error);
+    hpcsim_gravity_compute_acceleration_reference(&view, &gravity, NULL, &error);
 
     const double timestep = ORBITAL_PERIOD / (double)steps_per_orbit;
 
@@ -86,7 +86,8 @@ static double relative_energy_drift_after_orbit(HpcsimIntegratorType integrator,
     const int total_steps = orbit_count * steps_per_orbit;
     for (int step = 0; step < total_steps; ++step) {
         hpcsim_integrator_advance(&view, &gravity, integrator, timestep,
-                                  hpcsim_gravity_compute_acceleration_reference, &error);
+                                  hpcsim_gravity_compute_acceleration_reference, NULL,
+                                  &error);
     }
 
     HpcsimDiagnosticsQuantities final_diagnostics;
