@@ -46,6 +46,17 @@ void hpcsim_gravity_init(HpcsimGravity* gravity, double gravitational_constant,
 HpcsimStatus hpcsim_gravity_compute_acceleration_reference(
     const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, HpcsimError* error);
 
+/*
+ * OpenMP-parallel all-pairs kernel.
+ *
+ * The outer particle loop is distributed across threads. Each particle's
+ * force is still accumulated in the same serial order as the reference, so
+ * on a given machine the results are bit-identical to the reference kernel
+ * (deterministic parallel reduction). Requires OpenMP support in the build.
+ */
+HpcsimStatus hpcsim_gravity_compute_acceleration_openmp(
+    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, HpcsimError* error);
+
 #ifdef __cplusplus
 }
 #endif
