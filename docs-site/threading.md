@@ -1,3 +1,8 @@
+---
+title: OpenMP & Threading
+description: How OpenMP parallelizes the force kernels, thread configuration, affinity policies, and measured scaling.
+---
+
 # OpenMP & Threading
 
 ## Design
@@ -27,13 +32,13 @@ default and `n_body_sim_pro_threading_openmp_available()` returns 0.
 
 | threads | ms / evaluation | speedup | efficiency |
 |---------|-----------------|---------|------------|
-| 1 | 178.5 | 1.00 | 鈥?|
+| 1 | 178.5 | 1.00 | —|
 | 2 | 98.6 | 1.81 | 0.90 |
 | 4 | 50.7 | 3.52 | 0.88 |
 | 8 | 36.6 | 4.87 | 0.61 |
 | 16 | 27.9 | 6.41 | 0.40 |
 
-Efficiency is ~90% at 2鈥? threads and degrades beyond that because the
+Efficiency is ~90% at 2–4 threads and degrades beyond that because the
 kernel is **memory-bandwidth bound**: all threads stream the entire position
 and mass arrays for every particle. This is the expected behavior for an
 all-pairs kernel, and it is reported honestly rather than hidden.
