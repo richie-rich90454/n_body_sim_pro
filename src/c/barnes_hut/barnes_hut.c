@@ -6,10 +6,17 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #ifdef _OPENMP
 #include <omp.h>
 #endif
+
+static double wall_time_seconds(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (double)ts.tv_sec + (double)ts.tv_nsec * 1.0e-9;
+}
 
 /*
  * Barnes-Hut octree in contiguous storage.
@@ -457,10 +464,12 @@ HpcsimStatus hpcsim_barnes_hut_compute_acceleration(const HpcsimParticleSystemVi
         return HPCSIM_STATUS_INVALID_ARGUMENT;
     }
 
+    const double build_start = wall_time_seconds();
     HpcsimStatus status = build_tree(tree, view, error);
     if (status != HPCSIM_STATUS_OK) {
         return status;
     }
+    const double build_finish = wall_time_seconds();
 
     const size_t particle_count = view->particle_count;
     double* const accelerations_x = view->accelerations_x;
@@ -470,6 +479,7 @@ HpcsimStatus hpcsim_barnes_hut_compute_acceleration(const HpcsimParticleSystemVi
     size_t total_approximations = 0;
     size_t total_exact_interactions = 0;
 
+    const double evaluation_start = wall_time_seconds();
 #pragma omp parallel for schedule(static) reduction(+ : total_approximations, total_exact_interactions)
     for (long long i = 0; i < (long long)particle_count; ++i) {
         size_t approximations = 0;
@@ -487,9 +497,12 @@ HpcsimStatus hpcsim_barnes_hut_compute_acceleration(const HpcsimParticleSystemVi
         total_approximations += approximations;
         total_exact_interactions += exact_interactions;
     }
+    const double evaluation_finish = wall_time_seconds();
 
     tree->stats.accepted_approximations = total_approximations;
     tree->stats.exact_interactions = total_exact_interactions;
+    tree->stats.build_time_seconds = build_finish - build_start;
+    tree->stats.evaluation_time_seconds = evaluation_finish - evaluation_start;
     return HPCSIM_STATUS_OK;
 }
 
