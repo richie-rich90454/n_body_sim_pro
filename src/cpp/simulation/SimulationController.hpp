@@ -88,6 +88,9 @@ public:
     /* Conservation diagnostics refreshed each step. */
     const NumericalDiagnostics& numerical_diagnostics() const { return diagnostics_; }
 
+    /* Recompute the energy drift immediately (used by headless runs). */
+    void refresh_energy_diagnostics();
+
     /* Energy drift is only tracked for systems where the O(N^2) potential
      * energy sum is affordable. */
     static constexpr std::size_t ENERGY_TRACK_MAX_PARTICLES = 20000;
