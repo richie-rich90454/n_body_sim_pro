@@ -40,6 +40,9 @@ struct HeadlessReport {
 /* Runs the simulation headless; returns 0 on success. */
 int run_headless(const HeadlessOptions& options, HeadlessReport& report);
 
+/* Loads a checkpoint and continues it headless for `steps` timesteps. */
+int resume_checkpoint(const char* path, int steps, int threads, HeadlessReport& report);
+
 /* Prints the report in human-readable and JSON forms. */
 void print_report(const HeadlessOptions& options, const HeadlessReport& report);
 
