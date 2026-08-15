@@ -44,7 +44,8 @@ void hpcsim_gravity_init(HpcsimGravity* gravity, double gravitational_constant,
  * acceleration arrays (not accumulated).
  */
 HpcsimStatus hpcsim_gravity_compute_acceleration_reference(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, HpcsimError* error);
+    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
+    HpcsimError* error);
 
 /*
  * OpenMP-parallel all-pairs kernel.
@@ -55,7 +56,8 @@ HpcsimStatus hpcsim_gravity_compute_acceleration_reference(
  * (deterministic parallel reduction). Requires OpenMP support in the build.
  */
 HpcsimStatus hpcsim_gravity_compute_acceleration_openmp(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, HpcsimError* error);
+    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
+    HpcsimError* error);
 
 /*
  * AVX2 SIMD all-pairs kernels.
@@ -70,10 +72,12 @@ HpcsimStatus hpcsim_gravity_compute_acceleration_openmp(
  * so their symbols always exist.
  */
 HpcsimStatus hpcsim_gravity_compute_acceleration_avx2(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, HpcsimError* error);
+    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
+    HpcsimError* error);
 
 HpcsimStatus hpcsim_gravity_compute_acceleration_openmp_avx2(
-    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, HpcsimError* error);
+    const HpcsimParticleSystemView* view, const HpcsimGravity* gravity, void* context,
+    HpcsimError* error);
 
 #ifdef __cplusplus
 }
