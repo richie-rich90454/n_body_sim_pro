@@ -79,6 +79,36 @@ NBodySimProStatus n_body_sim_pro_gravity_compute_acceleration_openmp_avx2(
     const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
     NBodySimProError* error);
 
+/*
+ * AVX-512 SIMD all-pairs kernels.
+ *
+ * Identical to the AVX2 variants but with 512-bit lanes: eight source
+ * particles are processed at a time. On CPUs without AVX-512 these functions
+ * degrade to the reference kernel, so their symbols always exist.
+ */
+NBodySimProStatus n_body_sim_pro_gravity_compute_acceleration_avx512(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error);
+
+NBodySimProStatus n_body_sim_pro_gravity_compute_acceleration_openmp_avx512(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error);
+
+/*
+ * NEON SIMD all-pairs kernels (AArch64).
+ *
+ * Two source particles per 128-bit lane, computed with fused multiply-add.
+ * On non-ARM targets these functions degrade to the reference kernel, so
+ * their symbols always exist.
+ */
+NBodySimProStatus n_body_sim_pro_gravity_compute_acceleration_neon(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error);
+
+NBodySimProStatus n_body_sim_pro_gravity_compute_acceleration_openmp_neon(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error);
+
 #ifdef __cplusplus
 }
 #endif
