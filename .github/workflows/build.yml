@@ -24,7 +24,7 @@ jobs:
         include:
           - name: Windows x64
             os: windows-latest
-            shell: msys2 {0}
+            shell: "msys2 {0}"
           - name: Linux x64
             os: ubuntu-latest
             shell: bash
@@ -37,7 +37,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # MSYS2 ucrt64 toolchain (GCC), matching the CMakePresets configuration.
       - name: Set up MSYS2 toolchain (Windows)
         if: matrix.os == 'windows-latest'
         uses: msys2/setup-msys2@v2
@@ -51,10 +50,6 @@ jobs:
             mingw-w64-ucrt-x86_64-sdl3
             mingw-w64-ucrt-x86_64-glew
 
-      # Dear ImGui is fetched by CMake over SSH (git@github.com). The
-      # BUILD_SECRET repo secret carries the SSH private key that authorizes
-      # that fetch. Without it (e.g. PRs from forks), fall back to a plain
-      # https clone of the public dependency.
       - name: Set up SSH key (BUILD_SECRET)
         shell: ${{ matrix.shell }}
         env:
