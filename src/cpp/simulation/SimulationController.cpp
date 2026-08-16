@@ -81,22 +81,44 @@ NBodySimProBarnesHutTree* SimulationController::barnes_hut_tree() {
 NBodySimProForceFunction SimulationController::select_force_function(void*& force_context) const {
     if (barnes_hut_enabled) {
         force_context = const_cast<NBodySimProBarnesHutTree*>(tree_.get());
-        if (use_simd_barnes_hut && simd_backend_ == N_BODY_SIM_PRO_SIMD_BACKEND_AVX2) {
-            return n_body_sim_pro_barnes_hut_compute_acceleration_openmp_avx2;
+        if (use_simd_barnes_hut) {
+            switch (simd_backend_) {
+                case N_BODY_SIM_PRO_SIMD_BACKEND_AVX512:
+                    return n_body_sim_pro_barnes_hut_compute_acceleration_openmp_avx512;
+                case N_BODY_SIM_PRO_SIMD_BACKEND_NEON:
+                    return n_body_sim_pro_barnes_hut_compute_acceleration_openmp_neon;
+                case N_BODY_SIM_PRO_SIMD_BACKEND_AVX2:
+                    return n_body_sim_pro_barnes_hut_compute_acceleration_openmp_avx2;
+                default:
+                    break;
+            }
         }
         return n_body_sim_pro_barnes_hut_compute_acceleration;
     }
     force_context = nullptr;
-    const bool avx2_available = simd_backend_ == N_BODY_SIM_PRO_SIMD_BACKEND_AVX2;
     const bool openmp_available = n_body_sim_pro_threading_openmp_available() != 0;
     if (use_parallel_forces && openmp_available) {
-        return avx2_available ? n_body_sim_pro_gravity_compute_acceleration_openmp_avx2
-                              : n_body_sim_pro_gravity_compute_acceleration_openmp;
+        switch (simd_backend_) {
+            case N_BODY_SIM_PRO_SIMD_BACKEND_AVX512:
+                return n_body_sim_pro_gravity_compute_acceleration_openmp_avx512;
+            case N_BODY_SIM_PRO_SIMD_BACKEND_NEON:
+                return n_body_sim_pro_gravity_compute_acceleration_openmp_neon;
+            case N_BODY_SIM_PRO_SIMD_BACKEND_AVX2:
+                return n_body_sim_pro_gravity_compute_acceleration_openmp_avx2;
+            default:
+                return n_body_sim_pro_gravity_compute_acceleration_openmp;
+        }
     }
-    if (avx2_available) {
-        return n_body_sim_pro_gravity_compute_acceleration_avx2;
+    switch (simd_backend_) {
+        case N_BODY_SIM_PRO_SIMD_BACKEND_AVX512:
+            return n_body_sim_pro_gravity_compute_acceleration_avx512;
+        case N_BODY_SIM_PRO_SIMD_BACKEND_NEON:
+            return n_body_sim_pro_gravity_compute_acceleration_neon;
+        case N_BODY_SIM_PRO_SIMD_BACKEND_AVX2:
+            return n_body_sim_pro_gravity_compute_acceleration_avx2;
+        default:
+            return n_body_sim_pro_gravity_compute_acceleration_reference;
     }
-    return n_body_sim_pro_gravity_compute_acceleration_reference;
 }
 
 void SimulationController::compute_initial_accelerations() {
