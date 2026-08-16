@@ -49,8 +49,32 @@ double n_body_sim_pro_distributed_theta(const NBodySimProDistributedSimulation* 
  * tree exchange, and writes accelerations for `view`'s particles.
  */
 NBodySimProStatus n_body_sim_pro_distributed_compute_acceleration(const NBodySimProParticleSystemView* view,
-                                                     const NBodySimProGravity* gravity,
-                                                     void* context, NBodySimProError* error);
+                                                      const NBodySimProGravity* gravity,
+                                                      void* context, NBodySimProError* error);
+
+/*
+ * SIMD-accelerated variants of the distributed traversal.
+ *
+ * The essential-tree exchange is identical to the scalar variant; only the
+ * per-particle force accumulation over the local tree and the remote
+ * essential forest is staged and applied with vector FMA (AVX2: 4 lanes,
+ * AVX-512: 8 lanes, NEON: 2 lanes). The traversal makes identical opening
+ * decisions, so the result matches the scalar distributed kernel within
+ * floating-point tolerance, not bit-for-bit. On machines without the ISA the
+ * functions degrade to the scalar distributed kernel, so their symbols
+ * always exist.
+ */
+NBodySimProStatus n_body_sim_pro_distributed_compute_acceleration_avx2(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error);
+
+NBodySimProStatus n_body_sim_pro_distributed_compute_acceleration_avx512(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error);
+
+NBodySimProStatus n_body_sim_pro_distributed_compute_acceleration_neon(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error);
 
 typedef struct NBodySimProDistributedStats {
     int rank;
