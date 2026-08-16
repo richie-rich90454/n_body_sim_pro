@@ -59,8 +59,12 @@ Per force evaluation, each rank:
      essential forest is complete.
 3. **Assembles the remote cells** into a compact octree with the same node
    layout as the local tree (remote leaves marked `particle_index == -2`).
-4. **Walks the local tree and the remote forest sequentially** (reset
-   traversal stacks), writing accelerations for this rank's particles.
+4. **Walks the local tree and the remote forest** (reset traversal stacks),
+   writing accelerations for this rank's particles. The per-particle force
+   accumulation is SIMD-accelerated when the machine supports it — the
+   exchange and the tree build are byte-identical to the scalar kernel, and
+   only the force sum is staged and applied with vector FMA (see
+   [SIMD](/simd)).
 
 The protocol moves cells with `MPI_Allgatherv` (byte counts, gathered
 per-rank) and terminates with `MPI_Allreduce`.
@@ -96,24 +100,31 @@ mpiexec -n 2 build/release/bin/n_body_sim_pro distributed \
   --particles 4096 --steps 5 --theta 0.7
 ```
 
-Each rank prints its own telemetry:
+Each rank prints its own telemetry, including the SIMD backend the traversal
+used:
 
 ```
-Rank 1: particles=2048 remote_cells=2953 essential=2953 levels=8 compute=28.67% communication=10.20% avg_step=63.104 ms
-Rank 0: particles=2048 remote_cells=2951 essential=2951 levels=8 compute=29.56% communication=10.23% avg_step=63.511 ms
+Rank 1: particles=2048 remote_cells=2953 essential=2953 levels=8 simd=AVX2 compute=28.67% communication=10.20% avg_step=63.104 ms
+Rank 0: particles=2048 remote_cells=2951 essential=2951 levels=8 simd=AVX2 compute=29.56% communication=10.23% avg_step=63.511 ms
 ```
 
 All values are measured: local particle count, remote essential cells kept,
-exchange levels, and the communication/computation split over the run.
+exchange levels, the SIMD backend, and the communication/computation split
+over the run. The `distributed` command selects the best SIMD backend for the
+machine automatically (AVX-512, AVX2, NEON, or scalar), so MPI ranks, OpenMP
+threads, and SIMD lanes combine at scale.
 
 ## Measured behavior
 
 2 ranks, 4,096 particles per rank, θ = 0.7, MS-MPI, on the reference laptop:
 
-| Rank | particles | remote cells | essential | levels | compute | communication | step |
-|------|-----------|--------------|-----------|--------|---------|---------------|------|
-| 0 | 2,048 | 2,951 | 2,951 | 8 | 29.6% | 10.2% | 63.5 ms |
-| 1 | 2,048 | 2,953 | 2,953 | 8 | 28.7% | 10.2% | 63.1 ms |
+| Rank | particles | remote cells | essential | levels | SIMD | compute | communication | step |
+|------|-----------|--------------|-----------|--------|------|---------|---------------|------|
+| 0 | 2,048 | 2,951 | 2,951 | 8 | AVX2 | 29.6% | 10.2% | 63.5 ms |
+| 1 | 2,048 | 2,953 | 2,953 | 8 | AVX2 | 28.7% | 10.2% | 63.1 ms |
+
+The traversal runs through the AVX2 SIMD kernel on this machine. On a machine
+with AVX-512 or NEON the same protocol selects that backend instead.
 
 ## Platform notes
 
@@ -130,5 +141,3 @@ exchange levels, and the communication/computation split over the run.
 
 - Communication/computation overlap and nonblocking sends
 - Particle migration for load balancing
-- SIMD acceleration of the distributed traversal
-- MPI + OpenMP + SIMD hybrid at scale
