@@ -44,7 +44,9 @@ static double wall_time_seconds(void) {
 static void print_usage(const char* program_name) {
     fprintf(stderr,
             "Usage: %s --particles N --steps S [--threads T1,T2,..] [--algorithm "
-            "reference|openmp|avx2|openmp_avx2|barnes_hut|barnes_hut_avx2|barnes_hut_openmp_avx2] [--theta T]\n",
+            "reference|openmp|avx2|openmp_avx2|avx512|openmp_avx512|neon|openmp_neon|"
+            "barnes_hut|barnes_hut_avx2|barnes_hut_openmp_avx2|barnes_hut_avx512|"
+            "barnes_hut_openmp_avx512|barnes_hut_neon|barnes_hut_openmp_neon] [--theta T]\n",
             program_name);
 }
 
@@ -87,7 +89,11 @@ static double measure_force_evaluation(const NBodySimProGravity* gravity,
     NBodySimProBarnesHutTree* tree = NULL;
     if (strcmp(algorithm, "barnes_hut") == 0 ||
         strcmp(algorithm, "barnes_hut_avx2") == 0 ||
-        strcmp(algorithm, "barnes_hut_openmp_avx2") == 0) {
+        strcmp(algorithm, "barnes_hut_openmp_avx2") == 0 ||
+        strcmp(algorithm, "barnes_hut_avx512") == 0 ||
+        strcmp(algorithm, "barnes_hut_openmp_avx512") == 0 ||
+        strcmp(algorithm, "barnes_hut_neon") == 0 ||
+        strcmp(algorithm, "barnes_hut_openmp_neon") == 0) {
         tree = n_body_sim_pro_barnes_hut_tree_create(&error);
         if (tree == NULL) {
             fprintf(stderr, "failed to create Barnes-Hut tree\n");
@@ -106,10 +112,26 @@ static double measure_force_evaluation(const NBodySimProGravity* gravity,
             status = n_body_sim_pro_gravity_compute_acceleration_avx2(view, gravity, NULL, &error);
         } else if (strcmp(algorithm, "openmp_avx2") == 0) {
             status = n_body_sim_pro_gravity_compute_acceleration_openmp_avx2(view, gravity, NULL, &error);
+        } else if (strcmp(algorithm, "avx512") == 0) {
+            status = n_body_sim_pro_gravity_compute_acceleration_avx512(view, gravity, NULL, &error);
+        } else if (strcmp(algorithm, "openmp_avx512") == 0) {
+            status = n_body_sim_pro_gravity_compute_acceleration_openmp_avx512(view, gravity, NULL, &error);
+        } else if (strcmp(algorithm, "neon") == 0) {
+            status = n_body_sim_pro_gravity_compute_acceleration_neon(view, gravity, NULL, &error);
+        } else if (strcmp(algorithm, "openmp_neon") == 0) {
+            status = n_body_sim_pro_gravity_compute_acceleration_openmp_neon(view, gravity, NULL, &error);
         } else if (strcmp(algorithm, "barnes_hut_avx2") == 0) {
             status = n_body_sim_pro_barnes_hut_compute_acceleration_avx2(view, gravity, tree, &error);
         } else if (strcmp(algorithm, "barnes_hut_openmp_avx2") == 0) {
             status = n_body_sim_pro_barnes_hut_compute_acceleration_openmp_avx2(view, gravity, tree, &error);
+        } else if (strcmp(algorithm, "barnes_hut_avx512") == 0) {
+            status = n_body_sim_pro_barnes_hut_compute_acceleration_avx512(view, gravity, tree, &error);
+        } else if (strcmp(algorithm, "barnes_hut_openmp_avx512") == 0) {
+            status = n_body_sim_pro_barnes_hut_compute_acceleration_openmp_avx512(view, gravity, tree, &error);
+        } else if (strcmp(algorithm, "barnes_hut_neon") == 0) {
+            status = n_body_sim_pro_barnes_hut_compute_acceleration_neon(view, gravity, tree, &error);
+        } else if (strcmp(algorithm, "barnes_hut_openmp_neon") == 0) {
+            status = n_body_sim_pro_barnes_hut_compute_acceleration_openmp_neon(view, gravity, tree, &error);
         } else if (strcmp(algorithm, "barnes_hut") == 0) {
             status = n_body_sim_pro_barnes_hut_compute_acceleration(view, gravity, tree, &error);
         }
