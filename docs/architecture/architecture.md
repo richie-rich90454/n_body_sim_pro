@@ -77,9 +77,11 @@ reports.
 on other hardware. Dispatch keeps one binary correct everywhere and honest
 about what it runs.
 
-A backend is only selected when a real implementation exists. AVX-512 and
-NEON kernels are declared but not yet implemented; they are never selected
-until they exist, and the UI reports "unavailable" rather than pretending.
+A backend is only selected when a real implementation exists. All-pairs and
+Barnes-Hut kernels now exist for AVX2, AVX-512, and NEON, and CMake defines
+`N_BODY_SIM_PRO_HAVE_*_KERNEL` only when the matching translation unit was
+compiled with the ISA's flags, so the selection is honest on every build:
+preference order is AVX-512, AVX2, NEON, scalar.
 
 ## OpenMP
 
@@ -144,8 +146,8 @@ into contiguous blocks per rank. Each force evaluation:
    rank's tree that this rank's particles would actually traverse, refined
    level by level via `MPI_Allgatherv` until no rank needs finer detail
    (`MPI_Allreduce` termination),
-3. walks the local tree and the remote essential forest sequentially and
-   writes accelerations for this rank's particles.
+3. walks the local tree and the remote essential forest and writes
+   accelerations for this rank's particles.
 
 Every rank holds a distinct particle block and real messages move the tree
 cells —this is not a simulated single-process "distributed" mode. The
@@ -154,3 +156,9 @@ children present, which the equivalence test verifies against the
 single-rank Barnes-Hut result within the theta tolerance. The per-rank
 stats panel reports real remote-cell counts, exchange levels, and
 communication/computation times.
+
+The traversal is additionally SIMD-accelerated: the exchange and the tree
+build are byte-identical to the scalar kernel, while the per-particle force
+accumulation is staged and applied with vector FMA. The `distributed` command
+selects the best backend for the machine automatically (AVX-512, AVX2, NEON,
+or scalar), giving the MPI + OpenMP + SIMD hybrid at scale.
