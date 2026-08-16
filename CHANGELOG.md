@@ -4,6 +4,20 @@ All notable changes to this project are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/); the project is pre-1.0, so
 any part of the API may change.
 
+## [Unreleased]
+
+### Fixed
+
+- CMake fetches the public Dear ImGui dependency over HTTPS instead of SSH,
+  so a build needs no SSH private key.
+- CMake resolves the static GLEW target (`GLEW::glew_s`): a system package is
+  preferred, and static GLEW is built from source when the platform package
+  ships only the shared library (e.g. Homebrew).
+- NUMA thread-affinity pinning is guarded to Linux so macOS builds compile.
+- CI builds Windows x64, Linux x64, and macOS ARM64, packages each platform,
+  and publishes tagged (`vX.Y.Z`) releases; the release secret is only used
+  by the release step.
+
 ## [0.1.0] - 2026-08-15
 
 ### Added
