@@ -30,6 +30,16 @@ n_body_sim_pro_benchmark --particles 16384 --steps 3 --algorithm openmp_avx2 --t
 n_body_sim_pro_benchmark --particles 1000000 --steps 3 --algorithm barnes_hut --threads 16
 ```
 
+The force-kernel benchmark accepts every kernel explicitly, so the AVX-512
+and NEON variants can be measured on hardware that has them:
+
+```bash
+n_body_sim_pro_benchmark --particles 16384 --steps 3 --algorithm avx512 --threads 1
+n_body_sim_pro_benchmark --particles 16384 --steps 3 --algorithm openmp_avx512 --threads 1,2,4,8,16
+n_body_sim_pro_benchmark --particles 16384 --steps 3 --algorithm neon --threads 1
+n_body_sim_pro_benchmark --particles 16384 --steps 3 --algorithm barnes_hut_avx512 --threads 1
+```
+
 ## All-pairs kernels (16,384 particles)
 
 | Algorithm | threads | ms / evaluation | vs reference |
@@ -105,11 +115,12 @@ xychart-beta
 
 ## SIMD Barnes-Hut (measured result)
 
-A SIMD Barnes-Hut kernel is implemented and validated against the scalar
-kernel to 1e-9 relative, but it is **not faster** on this hardware:
+A SIMD Barnes-Hut kernel is implemented for AVX2, AVX-512, and NEON and
+validated against the scalar kernel to 1e-9 relative, but the AVX2 variant is
+**not faster** on this hardware:
 
-| N (1 thread) | scalar Barnes-Hut | SIMD Barnes-Hut |
-|--------------|-------------------|-----------------|
+| N (1 thread) | scalar Barnes-Hut | SIMD Barnes-Hut (AVX2) |
+|--------------|-------------------|------------------------|
 | 65,536 | 68 ms | 300 ms |
 | 262,144 | 234 ms | 1,643 ms |
 
@@ -121,16 +132,18 @@ not win on this hardware.
 
 ## Distributed (MPI)
 
-2 ranks, 4,096 particles per rank, θ = 0.7, MS-MPI on the same machine:
+2 ranks, 4,096 particles per rank, θ = 0.7, MS-MPI on the same machine. The
+traversal is SIMD-accelerated (AVX2 on this machine):
 
-| Rank | particles | remote cells | essential | levels | compute | communication | step |
-|------|-----------|--------------|-----------|--------|---------|---------------|------|
-| 0 | 2,048 | 2,951 | 2,951 | 8 | 29.6% | 10.2% | 63.5 ms |
-| 1 | 2,048 | 2,953 | 2,953 | 8 | 28.7% | 10.2% | 63.1 ms |
+| Rank | particles | remote cells | essential | levels | SIMD | compute | communication | step |
+|------|-----------|--------------|-----------|--------|------|---------|---------------|------|
+| 0 | 2,048 | 2,951 | 2,951 | 8 | AVX2 | 29.6% | 10.2% | 63.5 ms |
+| 1 | 2,048 | 2,953 | 2,953 | 8 | AVX2 | 28.7% | 10.2% | 63.1 ms |
 
 The distributed result matches the single-rank Barnes-Hut result within the
 θ tolerance (validated by the `distributed_barnes_hut_test` under
-`mpiexec`).
+`mpiexec`). The `distributed` command selects the best SIMD backend for the
+machine automatically, giving the MPI + OpenMP + SIMD hybrid at scale.
 
 ## Parallel generation
 
@@ -148,7 +161,10 @@ modest (~12%).
 ## Honesty rules
 
 - No number here is fabricated. Unavailable metrics render as `N/A`.
-- AVX-512 and NEON kernels do not exist yet and are never benchmarked.
+- AVX-512 and NEON kernels are implemented and validated for correctness on
+  hardware that supports them, but the development machine has no AVX-512 and
+  is not an ARM64 machine, so they are never benchmarked here and never
+  claimed to be faster.
 - The SIMD Barnes-Hut kernel is measurably slower than scalar on this
   hardware; that is documented, not hidden.
 - Thread scaling reports measured efficiency, which drops as the kernel
