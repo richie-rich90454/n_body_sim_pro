@@ -29,9 +29,9 @@ const char* n_body_sim_pro_simd_backend_string(NBodySimProSimdBackend backend);
 
 /*
  * The best backend for which a real kernel exists, given the detected
- * features. Currently: AVX2 (when both AVX2 and FMA are present), else
- * scalar. SSE2/AVX-512/NEON kernels are planned but not yet implemented;
- * they are never selected until they exist.
+ * features. Selection is honest: a backend is only returned when a matching
+ * kernel is compiled in (AVX2, AVX-512, NEON all have real all-pairs and
+ * Barnes-Hut kernels now). Preference order is AVX-512, AVX2, NEON, scalar.
  */
 NBodySimProSimdBackend n_body_sim_pro_simd_best_available_backend(const NBodySimProCpuFeatures* features);
 
