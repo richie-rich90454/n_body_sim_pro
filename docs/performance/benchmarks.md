@@ -15,6 +15,17 @@ n_body_sim_pro benchmark --particles 16384 --steps 3 --algorithm openmp_avx2 --t
 n_body_sim_pro benchmark --particles 1000000 --steps 3 --algorithm barnes_hut --theta 0.7 --threads 16
 ```
 
+The standalone force-kernel benchmark accepts every kernel explicitly, so
+AVX-512 and NEON variants can be measured on hardware that has them (the
+reference machine has no AVX-512, so those rows are not measured here):
+
+```
+n_body_sim_pro_benchmark --particles 16384 --steps 3 --algorithm avx512 --threads 1
+n_body_sim_pro_benchmark --particles 16384 --steps 3 --algorithm openmp_avx512 --threads 1,2,4,8,16
+n_body_sim_pro_benchmark --particles 16384 --steps 3 --algorithm neon --threads 1
+n_body_sim_pro_benchmark --particles 16384 --steps 3 --algorithm barnes_hut_avx512 --threads 1
+```
+
 ## All-pairs kernels (16384 particles)
 
 Single force evaluation, Release build:
@@ -91,8 +102,10 @@ communication/computation split is real, per-rank, and measured.
 
 - No number here is fabricated. If a run is not reproducible on a given
   machine, that is reported by the benchmark itself (or `N/A`).
-- AVX-512 and NEON kernels are not yet implemented; they are never
-  benchmarked and never claimed.
+- AVX-512 and NEON kernels are implemented and validated for correctness on
+  hardware that supports them, but the reference machine has no AVX-512 and
+  is not an ARM64 machine, so they are never benchmarked here and never
+  claimed to be faster.
 - Thread scaling is reported with measured efficiency, which drops as the
   kernel becomes memory-bound.
 - The SIMD Barnes-Hut kernel is measurably slower than the scalar kernel on
