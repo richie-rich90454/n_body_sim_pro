@@ -85,10 +85,28 @@ include(FetchContent)
 set(FETCHCONTENT_QUIET OFF)
 FetchContent_Declare(
     dear_imgui
-    GIT_REPOSITORY git@github.com:ocornut/imgui.git
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
     GIT_TAG v1.91.9
     GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(dear_imgui)
+
+# Static GLEW (GLEW::glew_s). Prefer a system package that exports the static
+# target; distributions that ship only the shared library (e.g. Homebrew)
+# cannot provide GLEW::glew_s, so build static GLEW from source in that case.
+find_package(GLEW QUIET)
+if(NOT TARGET GLEW::glew_s)
+    message(STATUS "System GLEW lacks the static GLEW::glew_s target; building static GLEW from source")
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
+    set(BUILD_UTILS OFF CACHE BOOL "Build GLEW utilities" FORCE)
+    FetchContent_Declare(
+        glew
+        GIT_REPOSITORY https://github.com/nigels-com/glew.git
+        GIT_TAG glew-2.3.1
+        GIT_SHALLOW TRUE
+        SOURCE_SUBDIR build/cmake)
+    FetchContent_MakeAvailable(glew)
+    add_library(GLEW::glew_s ALIAS glew_s)
+endif()
 
 # ---------------------------------------------------------------------------
 # Subdirectories

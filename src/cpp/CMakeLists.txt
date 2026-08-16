@@ -20,9 +20,6 @@ target_include_directories(dear_imgui PUBLIC
 
 target_compile_definitions(dear_imgui PUBLIC IMGUI_IMPL_OPENGL_LOADER_GLEW)
 
-find_package(GLEW REQUIRED)
-find_package(SDL3 3.0 REQUIRED)
-
 if(WIN32)
     set(N_BODY_SIM_PRO_OPENGL_LIBRARY opengl32)
 else()
