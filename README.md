@@ -7,7 +7,7 @@ A native CPU HPC simulation and visualization engine for large-scale gravitation
 - Runtime SIMD dispatch (SSE2 / AVX2 / AVX-512 / ARM NEON) with FMA
 - Barnes-Hut O(N log N) octree with Morton-order cache optimization
 - SDL3, OpenGL, Dear ImGui visualization
-- 10M+ particle target; 100M鈥?B benchmark infrastructure
+- 10M+ particle target; 100M–B benchmark infrastructure
 
 Physics is **CPU-only**. The GPU is used strictly for visualization.
 
@@ -15,7 +15,7 @@ Physics is **CPU-only**. The GPU is used strictly for visualization.
 
 - **Two-body validation**: a circular orbit stays an orbit; energy, momentum, and
   center of mass are conserved to the accuracy a symplectic integrator provides.
-- **Reference-first development**: a deliberately simple scalar O(N虏) kernel is
+- **Reference-first development**: a deliberately simple scalar O(N²) kernel is
   the correctness authority; OpenMP, SIMD, and Barnes-Hut are validated against it.
 - **Measured, not claimed**: every optimization in this repository was benchmarked
   on the machine it was developed on. Numbers below are real runs, not estimates.
@@ -46,13 +46,15 @@ At 10,000,000 particles: tree build 7.4 s, force evaluation 8.9 s, step 17.5 s.
 Reproduce with:
 
 ```
-n_body_sim_pro benchmark --particles 16384 --steps 3 --algorithm reference --threads 1
-n_body_sim_pro benchmark --particles 16384 --steps 3 --algorithm avx2 --threads 1
-n_body_sim_pro benchmark --particles 16384 --steps 3 --algorithm openmp_avx2 --threads 1,2,4,8,16
-n_body_sim_pro benchmark --particles 1000000 --steps 3 --algorithm barnes_hut --threads 16
+n_body_sim_pro_benchmark --particles 16384 --steps 3 --algorithm reference --threads 1
+n_body_sim_pro_benchmark --particles 16384 --steps 3 --algorithm avx2 --threads 1
+n_body_sim_pro_benchmark --particles 16384 --steps 3 --algorithm openmp_avx2 --threads 1,2,4,8,16
+n_body_sim_pro_benchmark --particles 1000000 --steps 3 --algorithm barnes_hut --threads 16
 ```
 
-Every run prints machine-readable JSON as its final line, e.g.:
+The force-kernel benchmark (`n_body_sim_pro_benchmark`) prints a machine-readable
+CSV line as its final output; the whole-step `n_body_sim_pro benchmark` command
+prints JSON instead, e.g.:
 
 ```
 {"cpu":"Intel(R) Core(TM) Ultra 7 255H","simd":{"avx2":true,...},"particles":1000000,...}
@@ -69,9 +71,9 @@ Every run prints machine-readable JSON as its final line, e.g.:
   `brew install sdl3 glew`.
 - **OpenMP** support in the compiler (for threaded kernels).
 - **Microsoft MPI** (Windows) or an MPI implementation such as OpenMPI or
-  MPICH (Linux/macOS) 鈥?only needed for the distributed (`mpiexec`) path;
+  MPICH (Linux/macOS) —only needed for the distributed (`mpiexec`) path;
   everything else builds and runs without it.
-- **Dear ImGui** is fetched automatically by CMake over Git (SSH) 鈥?no
+- **Dear ImGui** is fetched automatically by CMake over Git (SSH) —no
   manual step.
 
 ## Building
@@ -102,7 +104,8 @@ automatically (`-DN_BODY_SIM_PRO_ENABLE_MPI=ON` by default); pass
 ```
 n_body_sim_pro                          # launch the interactive application
 n_body_sim_pro hardware                 # detected CPU / SIMD / OpenMP / NUMA
-n_body_sim_pro benchmark --help         # headless benchmarks (JSON output)
+n_body_sim_pro --help                   # usage and available commands
+n_body_sim_pro benchmark --particles 16384 --steps 3   # headless benchmark (JSON output)
 n_body_sim_pro save galaxy.hpcs --particles 65536 --preset galaxy_collision
 n_body_sim_pro resume galaxy.hpcs --steps 100 --threads 16
 mpiexec -n 2 n_body_sim_pro distributed --particles 4096 --steps 5
@@ -114,10 +117,10 @@ Running `n_body_sim_pro` with no arguments opens the SDL3 window. The
 default scene is a two-body orbit with trails. Use the **Simulation** panel
 to pick a preset, particle count, seed, and algorithm:
 
-- **All-pairs (OpenMP)** 鈥?exact O(N虏), parallel.
-- **All-pairs (single thread)** 鈥?the scalar reference.
-- **Barnes-Hut** 鈥?O(N log N), with a 胃 slider.
-- **Barnes-Hut (SIMD, experimental)** 鈥?the SIMD traversal (benchmarked
+- **All-pairs (OpenMP)** —exact O(N²), parallel.
+- **All-pairs (single thread)** —the scalar reference.
+- **Barnes-Hut** —O(N log N), with a θ slider.
+- **Barnes-Hut (SIMD, experimental)** —the SIMD traversal (benchmarked
   slower than scalar on most hardware; documented).
 
 Controls:
@@ -173,18 +176,18 @@ measured results, SIMD, NUMA, MPI, CLI reference) is published as a
 [`docs/`](docs/).
 
 - [`docs/architecture/architecture.md`](docs/architecture/architecture.md)
-  鈥?C/C++ boundary, memory model, pipeline, SIMD dispatch, instrumentation
-- [`docs/physics/gravity.md`](docs/physics/gravity.md) 鈥?equations, softening
-- [`docs/physics/integrators.md`](docs/physics/integrators.md) 鈥?integrator
+  —C/C++ boundary, memory model, pipeline, SIMD dispatch, instrumentation
+- [`docs/physics/gravity.md`](docs/physics/gravity.md) —equations, softening
+- [`docs/physics/integrators.md`](docs/physics/integrators.md) —integrator
   properties
-- [`docs/physics/presets.md`](docs/physics/presets.md) 鈥?preset assumptions
-- [`docs/performance/benchmarks.md`](docs/performance/benchmarks.md) 鈥?real
+- [`docs/physics/presets.md`](docs/physics/presets.md) —preset assumptions
+- [`docs/performance/benchmarks.md`](docs/performance/benchmarks.md) —real
   measured results and how to reproduce them
-- [`docs/performance/simd.md`](docs/performance/simd.md) 鈥?SIMD coverage
+- [`docs/performance/simd.md`](docs/performance/simd.md) —SIMD coverage
 
 ## Roadmap
 
-- [x] Reference O(N虏), two-body validation
+- [x] Reference O(N²), two-body validation
 - [x] OpenMP parallel kernels and thread control
 - [x] Runtime SIMD dispatch with AVX2 kernel
 - [x] Barnes-Hut octree with theta control and Morton-order optimization
@@ -202,4 +205,4 @@ measured results, SIMD, NUMA, MPI, CLI reference) is published as a
 
 ## License
 
-MIT 鈥?see [LICENSE](LICENSE).
+MIT —see [LICENSE](LICENSE).
