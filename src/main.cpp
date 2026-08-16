@@ -240,12 +240,30 @@ int run_distributed_command(int argc, char** argv) {
     }
     n_body_sim_pro_distributed_set_theta(simulation, theta);
 
+    NBodySimProCpuFeatures cpu_features = n_body_sim_pro_cpu_detect_features();
+    const NBodySimProSimdBackend simd_backend =
+        n_body_sim_pro_simd_best_available_backend(&cpu_features);
+    NBodySimProForceFunction distributed_force = n_body_sim_pro_distributed_compute_acceleration;
+    switch (simd_backend) {
+        case N_BODY_SIM_PRO_SIMD_BACKEND_AVX512:
+            distributed_force = n_body_sim_pro_distributed_compute_acceleration_avx512;
+            break;
+        case N_BODY_SIM_PRO_SIMD_BACKEND_NEON:
+            distributed_force = n_body_sim_pro_distributed_compute_acceleration_neon;
+            break;
+        case N_BODY_SIM_PRO_SIMD_BACKEND_AVX2:
+            distributed_force = n_body_sim_pro_distributed_compute_acceleration_avx2;
+            break;
+        default:
+            break;
+    }
+
     NBodySimProParticleSystemView view;
     n_body_sim_pro_particle_system_view(local, &view, &error);
 
     const double t0 = n_body_sim_pro_mpi_wall_time();
     for (int step = 0; step < steps; ++step) {
-        if (n_body_sim_pro_distributed_compute_acceleration(&view, &gravity, simulation, &error) !=
+        if (distributed_force(&view, &gravity, simulation, &error) !=
             N_BODY_SIM_PRO_STATUS_OK) {
             std::fprintf(stderr, "distributed: force evaluation failed\n");
             break;
@@ -256,9 +274,10 @@ int run_distributed_command(int argc, char** argv) {
     NBodySimProDistributedStats stats;
     n_body_sim_pro_distributed_stats(simulation, &stats);
     std::printf("Rank %d: particles=%zu remote_cells=%zu essential=%zu levels=%d "
-                "compute=%.2f%% communication=%.2f%% avg_step=%.3f ms\n",
+                "simd=%s compute=%.2f%% communication=%.2f%% avg_step=%.3f ms\n",
                 stats.rank, stats.local_particles, stats.remote_cells,
                 stats.essential_cells, stats.levels_exchanged,
+                n_body_sim_pro_simd_backend_string(simd_backend),
                 total > 0.0 ? 100.0 * stats.computation_time_seconds / total : 0.0,
                 total > 0.0 ? 100.0 * stats.communication_time_seconds / total : 0.0,
                 1000.0 * total / (double)steps);
