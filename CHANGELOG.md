@@ -6,6 +6,33 @@ any part of the API may change.
 
 ## [Unreleased]
 
+### Added
+
+- AVX-512 SIMD all-pairs and Barnes-Hut force kernels (512-bit lanes, FMA),
+  compiled in their own translation units and selected at runtime when the
+  CPU has AVX-512 and the build compiled the kernels.
+- NEON SIMD all-pairs and Barnes-Hut force kernels (AArch64, 128-bit lanes,
+  FMA), selected at runtime on ARM64.
+- SIMD acceleration of the distributed Barnes-Hut traversal for AVX2,
+  AVX-512, and NEON: the essential-tree exchange and local tree build are
+  byte-identical to the scalar kernel, and only the per-particle force
+  accumulation is staged and applied with vector FMA.
+- The `distributed` command selects the best SIMD backend for the machine
+  automatically and reports it in the per-rank telemetry line, giving the
+  MPI + OpenMP + SIMD hybrid at scale.
+- Force-kernel benchmark algorithm names for the new kernels (`avx512`,
+  `openmp_avx512`, `neon`, `openmp_neon`, `barnes_hut_avx512`,
+  `barnes_hut_openmp_avx512`, `barnes_hut_neon`, `barnes_hut_openmp_neon`).
+
+### Changed
+
+- Backend selection prefers AVX-512 over AVX2 over NEON over scalar, and is
+  gated on the kernel actually being compiled in (`N_BODY_SIM_PRO_HAVE_*_KERNEL`)
+  so a backend is never selected on a build that lacks its kernel.
+- The `distributed_barnes_hut_test` now exercises every SIMD distributed
+  traversal the build compiled in and checks it against the single-rank
+  reference.
+
 ### Fixed
 
 - CMake fetches the public Dear ImGui dependency over HTTPS instead of SSH,
