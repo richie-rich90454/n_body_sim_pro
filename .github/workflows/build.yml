@@ -1,19 +1,19 @@
 name: build
-
-on:
+'on':
   push:
-    branches: [main]
+    branches:
+      - main
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+
   pull_request:
-    branches: [main]
-  workflow_dispatch:
-
+    branches:
+      - main
+  workflow_dispatch: null
 permissions:
   contents: read
-
 concurrency:
   group: build-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
   build:
     name: ${{ matrix.name }}
@@ -25,116 +25,234 @@ jobs:
           - name: Windows x64
             os: windows-latest
             platform: windows
+            archive: n_body_sim_pro-windows-x64.zip
           - name: Linux x64
             os: ubuntu-latest
             platform: linux
+            archive: n_body_sim_pro-linux-x64.tar.gz
           - name: macOS ARM64
             os: macos-14
             platform: macos
+            archive: n_body_sim_pro-macos-arm64.tar.gz
             omp_root: /opt/homebrew/opt/libomp
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up MSYS2 toolchain (Windows)
+        with:
+          persist-credentials: false
+      - name: Set up MSYS2 toolchain
         if: matrix.platform == 'windows'
         uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
           update: true
-          install: >-
-            mingw-w64-ucrt-x86_64-gcc
-            mingw-w64-ucrt-x86_64-cmake
-            mingw-w64-ucrt-x86_64-ninja
-            mingw-w64-ucrt-x86_64-sdl3
-            mingw-w64-ucrt-x86_64-glew
-
-      - name: Set up SSH key (Windows)
+          install: mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-sdl3 mingw-w64-ucrt-x86_64-glew
+      - name: Configure Git for HTTPS dependency fetching
         if: matrix.platform == 'windows'
         shell: msys2 {0}
-        env:
-          BUILD_SECRET: ${{ secrets.BUILD_SECRET }}
+        run: |
+          set -e
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+      - name: Configure
+        if: matrix.platform == 'windows'
+        shell: msys2 {0}
         run: |
           set -e
 
-          if [ -z "$BUILD_SECRET" ]; then
-            echo "BUILD_SECRET not set; using HTTPS for dependency fetch."
-            git config --global url."https://github.com/".insteadOf "git@github.com:"
-            exit 0
-          fi
-
-          mkdir -p "$HOME/.ssh"
-          printf '%s\n' "$BUILD_SECRET" > "$HOME/.ssh/id_ed25519"
-          chmod 600 "$HOME/.ssh/id_ed25519"
-          ssh-keyscan github.com >> "$HOME/.ssh/known_hosts" 2>/dev/null || true
-
-      - name: Set up SSH key (Linux/macOS)
-        if: matrix.platform != 'windows'
-        shell: bash
-        env:
-          BUILD_SECRET: ${{ secrets.BUILD_SECRET }}
+          cmake \
+            -S . \
+            -B build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DN_BODY_SIM_PRO_BUILD_TESTS=OFF
+      - name: Build
+        if: matrix.platform == 'windows'
+        shell: msys2 {0}
         run: |
           set -e
+          cmake --build build --parallel
+      - name: Package
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
 
-          if [ -z "$BUILD_SECRET" ]; then
-            echo "BUILD_SECRET not set; using HTTPS for dependency fetch."
-            git config --global url."https://github.com/".insteadOf "git@github.com:"
-            exit 0
-          fi
+          New-Item -ItemType Directory -Force -Path release | Out-Null
 
-          mkdir -p "$HOME/.ssh"
-          printf '%s\n' "$BUILD_SECRET" > "$HOME/.ssh/id_ed25519"
-          chmod 600 "$HOME/.ssh/id_ed25519"
-          ssh-keyscan github.com >> "$HOME/.ssh/known_hosts" 2>/dev/null || true
+          if (-not (Test-Path "build/bin/n_body_sim_pro.exe")) {
+            throw "Expected build/bin/n_body_sim_pro.exe was not produced."
+          }
 
-      - name: Install dependencies (Linux)
+          Compress-Archive `
+            -Path "build/bin/*" `
+            -DestinationPath "release/${{ matrix.archive }}" `
+            -CompressionLevel Optimal
+      - name: Set up Linux Homebrew
         if: matrix.platform == 'linux'
         shell: bash
         run: |
           set -e
+
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+
+          echo "/home/linuxbrew/.linuxbrew/bin" >> "$GITHUB_PATH"
+
+          brew --version
+      - name: Install Linux dependencies
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          set -e
+
           sudo apt-get update
-          sudo apt-get install -y libsdl3-dev libglew-dev ninja-build
 
-      - name: Install dependencies (macOS)
-        if: matrix.platform == 'macos'
-        shell: bash
-        run: |
-          set -e
-          brew install sdl3 glew ninja libomp
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            pkg-config
 
-      - name: Configure (Windows)
-        if: matrix.platform == 'windows'
-        shell: msys2 {0}
-        run: |
-          set -e
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 
-      - name: Configure (Linux)
+          brew install sdl3 glew
+      - name: Configure Git for HTTPS dependency fetching
         if: matrix.platform == 'linux'
         shell: bash
         run: |
           set -e
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+      - name: Configure
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          set -e
 
-      - name: Configure (macOS)
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+
+          cmake \
+            -S . \
+            -B build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix)" \
+            -DN_BODY_SIM_PRO_BUILD_TESTS=OFF
+      - name: Build
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          set -e
+          cmake --build build --parallel
+      - name: Package
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          set -e
+
+          mkdir -p release
+
+          test -f build/bin/n_body_sim_pro
+
+          tar \
+            -C build/bin \
+            -czf "release/${{ matrix.archive }}" \
+            n_body_sim_pro
+      - name: Install macOS dependencies
         if: matrix.platform == 'macos'
         shell: bash
         run: |
           set -e
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-            -DOpenMP_ROOT="${{ matrix.omp_root }}"
 
-      - name: Build (Windows)
-        if: matrix.platform == 'windows'
-        shell: msys2 {0}
-        run: |
-          set -e
-          cmake --build build
-
-      - name: Build (Linux/macOS)
-        if: matrix.platform != 'windows'
+          brew update
+          brew install sdl3 glew ninja libomp
+      - name: Configure Git for HTTPS dependency fetching
+        if: matrix.platform == 'macos'
         shell: bash
         run: |
           set -e
-          cmake --build build
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+      - name: Configure
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          set -e
+
+          cmake \
+            -S . \
+            -B build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="/opt/homebrew" \
+            -DOpenMP_ROOT="${{ matrix.omp_root }}" \
+            -DN_BODY_SIM_PRO_BUILD_TESTS=OFF
+      - name: Build
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          set -e
+          cmake --build build --parallel
+      - name: Package
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          set -e
+
+          mkdir -p release
+
+          test -f build/bin/n_body_sim_pro
+
+          tar \
+            -C build/bin \
+            -czf "release/${{ matrix.archive }}" \
+            n_body_sim_pro
+      - name: Upload packaged build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: release/${{ matrix.archive }}
+          if-no-files-found: error
+          compression-level: 0
+  release:
+    name: Release ${{ github.ref_name }}
+    if: github.ref_type == 'tag'
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Windows build
+        uses: actions/download-artifact@v4
+        with:
+          name: Windows x64
+          path: release
+      - name: Download Linux build
+        uses: actions/download-artifact@v4
+        with:
+          name: Linux x64
+          path: release
+      - name: Download macOS build
+        uses: actions/download-artifact@v4
+        with:
+          name: macOS ARM64
+          path: release
+      - name: Verify release assets
+        shell: bash
+        run: |
+          set -e
+
+          echo "Release assets:"
+          ls -lah release
+
+          test -f release/n_body_sim_pro-windows-x64.zip
+          test -f release/n_body_sim_pro-linux-x64.tar.gz
+          test -f release/n_body_sim_pro-macos-arm64.tar.gz
+      - name: Create GitHub Release and upload assets
+        uses: softprops/action-gh-release@v3
+        with:
+          token: ${{ secrets.BUILD_SECRET }}
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            release/n_body_sim_pro-windows-x64.zip
+            release/n_body_sim_pro-linux-x64.tar.gz
+            release/n_body_sim_pro-macos-arm64.tar.gz
