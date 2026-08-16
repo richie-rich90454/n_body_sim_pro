@@ -5,6 +5,7 @@ A native CPU HPC simulation and visualization engine for large-scale gravitation
 - C17 numerical kernels + C++20 application layer
 - OpenMP shared-memory parallelism with configurable thread counts
 - Runtime SIMD dispatch (SSE2 / AVX2 / AVX-512 / ARM NEON) with FMA
+- All-pairs and Barnes-Hut kernels for AVX2, AVX-512, and NEON
 - Barnes-Hut O(N log N) octree with Morton-order cache optimization
 - SDL3, OpenGL, Dear ImGui visualization
 - 10M+ particle target; 100M–B benchmark infrastructure
@@ -58,6 +59,18 @@ prints JSON instead, e.g.:
 
 ```
 {"cpu":"Intel(R) Core(TM) Ultra 7 255H","simd":{"avx2":true,...},"particles":1000000,...}
+```
+
+The force-kernel benchmark accepts every kernel explicitly, so the AVX-512 and
+NEON variants can be measured on hardware that has them (this development
+machine has no AVX-512 and is not ARM64, so they are validated for correctness
+but not benchmarked here):
+
+```
+n_body_sim_pro_benchmark --particles 16384 --steps 3 --algorithm avx512 --threads 1
+n_body_sim_pro_benchmark --particles 16384 --steps 3 --algorithm openmp_avx512 --threads 1,2,4,8,16
+n_body_sim_pro_benchmark --particles 16384 --steps 3 --algorithm neon --threads 1
+n_body_sim_pro_benchmark --particles 16384 --steps 3 --algorithm barnes_hut_avx512 --threads 1
 ```
 
 ## Prerequisites
@@ -151,7 +164,13 @@ mpiexec -n 2 build/release/bin/n_body_sim_pro distributed --particles 4096 --ste
 ```
 
 Each rank reports its own particle block, remote essential-tree cells,
-exchange levels, and the communication/computation split.
+exchange levels, the SIMD backend used by the traversal, and the
+communication/computation split. The distributed traversal is
+SIMD-accelerated: the essential-tree exchange is identical to the scalar
+kernel, and only the per-particle force accumulation is staged and applied
+with vector FMA. The `distributed` command selects the best SIMD backend for
+the machine automatically, so MPI ranks, OpenMP threads, and SIMD lanes
+combine at scale.
 
 ## Architecture
 
@@ -166,7 +185,7 @@ C++ application layer          C17 HPC engine
   Logging                        Morton reordering, radix sort
   Distributed runner             SIMD (scalar/SSE2/AVX2/AVX-512/NEON)
                                  Threading + NUMA (OpenMP)
-                                 MPI essential-tree exchange
+                                 MPI essential-tree exchange + SIMD traversal
 ```
 
 The C engine exposes a plain C ABI (`include/n_body_sim_pro/n_body_sim_pro.h`); the C++
@@ -205,9 +224,9 @@ measured results, SIMD, NUMA, MPI, CLI reference) is published as a
       parallel generation
 - [x] MPI distributed execution with a local essential-tree exchange and
       per-rank telemetry
-- [ ] SIMD acceleration of the distributed traversal
-- [ ] AVX-512 / NEON all-pairs and Barnes-Hut kernels
-- [ ] MPI + OpenMP + SIMD hybrid at scale
+- [x] SIMD acceleration of the distributed traversal
+- [x] AVX-512 / NEON all-pairs and Barnes-Hut kernels
+- [x] MPI + OpenMP + SIMD hybrid at scale
 
 ## License
 
