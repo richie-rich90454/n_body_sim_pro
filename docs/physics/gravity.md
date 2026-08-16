@@ -14,7 +14,7 @@ with *G* the gravitational constant, *m_j* the source mass, and the vector
 
 ## Softening
 
-Direct use of the 1/r虏 force is singular at contact. The engine uses
+Direct use of the 1/r² force is singular at contact. The engine uses
 Plummer softening:
 
 ```
