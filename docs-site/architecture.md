@@ -112,9 +112,12 @@ The kernels form a strict validation chain:
 flowchart LR
     REF["Reference O(N²)"] --> OMP["OpenMP (bit-identical)"]
     REF --> AVX2["AVX2 (≤ 1e-10)"]
+    REF --> AVX512["AVX-512 (≤ 1e-10)"]
+    REF --> NEON["NEON (≤ 1e-10)"]
     REF --> BH["Barnes-Hut (θ-bound)"]
     BH --> BHAVX2["SIMD Barnes-Hut (≤ 1e-9)"]
     BH --> DIST["MPI distributed (θ-bound)"]
+    DIST --> DISTSIMD["SIMD distributed (≤ 1e-9)"]
 ```
 
 ## Barnes-Hut octree
@@ -173,14 +176,17 @@ kernel exists**. The selected backend is what is actually used and what the
 UI reports.
 
 ```
-AVX2 + FMA available  → AVX2 kernel
-otherwise             → scalar kernel (until other kernels exist)
+AVX-512 + FMA available → AVX-512 kernel
+AVX2 + FMA available     → AVX2 kernel
+AArch64 (NEON)           → NEON kernel
+otherwise                → scalar kernel
 ```
 
-A backend is only selected when a real implementation exists. AVX-512 and
-NEON are detected and reported as *available*, but never *selected*, because
-their kernels do not exist yet. The UI distinguishes "detected ISA" from
-"selected backend" and never conflates them.
+All-pairs and Barnes-Hut kernels now exist for AVX2, AVX-512, and NEON. CMake
+defines `N_BODY_SIM_PRO_HAVE_*_KERNEL` only when the matching translation
+unit is built with the ISA's flags, so a backend is never selected on a build
+that lacks its kernel. The UI distinguishes "detected ISA" from "selected
+backend" and never conflates them.
 
 ## OpenMP
 
@@ -220,9 +226,11 @@ one node and placement is a harmless no-op; the code path is real.
 When built with MPI, each rank owns a contiguous particle block. Every force
 evaluation builds a local Morton-ordered tree, exchanges a **local essential
 tree** level by level (`MPI_Allgatherv`, `MPI_Allreduce` termination), and
-walks the local tree plus the remote essential forest. See
-[Distributed (MPI)](/distributed) for the full protocol and correctness
-argument.
+walks the local tree plus the remote essential forest. The traversal is
+SIMD-accelerated: the exchange and tree build are byte-identical to the
+scalar kernel, while the per-particle force accumulation is staged and
+applied with vector FMA. See [Distributed (MPI)](/distributed) for the full
+protocol and correctness argument.
 
 ## Renderer
 
