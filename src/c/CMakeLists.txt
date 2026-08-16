@@ -18,18 +18,43 @@ add_library(${N_BODY_SIM_PRO_C_LIBRARY} STATIC
     simd/cpu.c
     simd/backend.c
     simd/force_avx2.c
+    simd/force_avx512.c
+    simd/force_neon.c
     simd/barnes_hut_avx2.c
+    simd/barnes_hut_avx512.c
+    simd/barnes_hut_neon.c
     threading/threading.c
     threading/numa.c
     mpi/mpi_runtime.c
-    mpi/distributed_barnes_hut.c)
+    mpi/distributed_barnes_hut.c
+    mpi/distributed_barnes_hut_avx2.c
+    mpi/distributed_barnes_hut_avx512.c
+    mpi/distributed_barnes_hut_neon.c)
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|i686" AND CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
     set_source_files_properties(simd/force_avx2.c simd/barnes_hut_avx2.c
+        mpi/distributed_barnes_hut_avx2.c
         PROPERTIES COMPILE_OPTIONS "-mavx2;-mfma")
+    set_source_files_properties(simd/force_avx512.c simd/barnes_hut_avx512.c
+        mpi/distributed_barnes_hut_avx512.c
+        PROPERTIES COMPILE_OPTIONS "-mavx512f;-mfma")
+    target_compile_definitions(${N_BODY_SIM_PRO_C_LIBRARY} PUBLIC
+        N_BODY_SIM_PRO_HAVE_AVX2_KERNEL
+        N_BODY_SIM_PRO_HAVE_AVX512_KERNEL)
 elseif(MSVC)
     set_source_files_properties(simd/force_avx2.c simd/barnes_hut_avx2.c
+        mpi/distributed_barnes_hut_avx2.c
         PROPERTIES COMPILE_OPTIONS "/arch:AVX2")
+    set_source_files_properties(simd/force_avx512.c simd/barnes_hut_avx512.c
+        mpi/distributed_barnes_hut_avx512.c
+        PROPERTIES COMPILE_OPTIONS "/arch:AVX512")
+    target_compile_definitions(${N_BODY_SIM_PRO_C_LIBRARY} PUBLIC
+        N_BODY_SIM_PRO_HAVE_AVX2_KERNEL
+        N_BODY_SIM_PRO_HAVE_AVX512_KERNEL)
+endif()
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|ARM64")
+    target_compile_definitions(${N_BODY_SIM_PRO_C_LIBRARY} PUBLIC
+        N_BODY_SIM_PRO_HAVE_NEON_KERNEL)
 endif()
 
 target_include_directories(${N_BODY_SIM_PRO_C_LIBRARY} PUBLIC
