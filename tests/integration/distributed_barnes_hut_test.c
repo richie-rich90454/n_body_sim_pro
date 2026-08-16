@@ -139,6 +139,34 @@ int main(int argc, char** argv) {
             DIST_ASSERT(n_body_sim_pro_distributed_compute_acceleration(&local_view, &gravity,
                                                                 simulation, &error) ==
                         N_BODY_SIM_PRO_STATUS_OK);
+
+            /* The SIMD distributed traversal must agree with the scalar one
+             * (identical exchange, identical opening decisions, vectorized
+             * accumulation), and both must agree with the single-rank
+             * reference within the theta tolerance. Exercise every backend
+             * the build actually compiled in. */
+            NBodySimProCpuFeatures features = n_body_sim_pro_cpu_detect_features();
+#ifdef N_BODY_SIM_PRO_HAVE_AVX2_KERNEL
+            if (features.has_avx2) {
+                DIST_ASSERT(n_body_sim_pro_distributed_compute_acceleration_avx2(&local_view, &gravity,
+                                                                         simulation, &error) ==
+                            N_BODY_SIM_PRO_STATUS_OK);
+            }
+#endif
+#ifdef N_BODY_SIM_PRO_HAVE_AVX512_KERNEL
+            if (features.has_avx512_foundation) {
+                DIST_ASSERT(n_body_sim_pro_distributed_compute_acceleration_avx512(&local_view, &gravity,
+                                                                           simulation, &error) ==
+                            N_BODY_SIM_PRO_STATUS_OK);
+            }
+#endif
+#ifdef N_BODY_SIM_PRO_HAVE_NEON_KERNEL
+            if (features.has_neon) {
+                DIST_ASSERT(n_body_sim_pro_distributed_compute_acceleration_neon(&local_view, &gravity,
+                                                                         simulation, &error) ==
+                            N_BODY_SIM_PRO_STATUS_OK);
+            }
+#endif
             n_body_sim_pro_distributed_destroy(simulation);
         }
 
