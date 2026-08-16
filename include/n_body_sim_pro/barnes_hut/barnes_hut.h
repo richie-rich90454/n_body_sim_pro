@@ -81,6 +81,35 @@ NBodySimProStatus n_body_sim_pro_barnes_hut_compute_acceleration_openmp_avx2(
     NBodySimProError* error);
 
 /*
+ * AVX-512 SIMD variants of the Barnes-Hut force evaluation.
+ *
+ * Eight Morton-adjacent interactions are staged together and applied with
+ * 512-bit FMA. On CPUs without AVX-512 these functions degrade to the scalar
+ * kernel.
+ */
+NBodySimProStatus n_body_sim_pro_barnes_hut_compute_acceleration_avx512(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error);
+
+NBodySimProStatus n_body_sim_pro_barnes_hut_compute_acceleration_openmp_avx512(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error);
+
+/*
+ * NEON SIMD variants of the Barnes-Hut force evaluation (AArch64).
+ *
+ * Two interactions per 128-bit lane. On non-ARM targets these functions
+ * degrade to the scalar kernel.
+ */
+NBodySimProStatus n_body_sim_pro_barnes_hut_compute_acceleration_neon(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error);
+
+NBodySimProStatus n_body_sim_pro_barnes_hut_compute_acceleration_openmp_neon(
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity, void* context,
+    NBodySimProError* error);
+
+/*
  * Read statistics from the most recent force evaluation. Returns 0 on
  * success, non-zero if `tree` or `stats` is NULL.
  */
