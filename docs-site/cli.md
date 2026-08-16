@@ -103,7 +103,7 @@ n_body_sim_pro_benchmark --particles N --steps S [--threads T1,T2,..]
 | `--particles N` | 10000 | particle count |
 | `--steps S` | 5 | force evaluations to time |
 | `--threads T1,T2,..` | `1` | OpenMP thread counts to benchmark (comma-separated) |
-| `--algorithm A` | openmp | `reference`, `openmp`, `avx2`, `openmp_avx2`, `barnes_hut`, `barnes_hut_avx2`, `barnes_hut_openmp_avx2` |
+| `--algorithm A` | openmp | `reference`, `openmp`, `avx2`, `openmp_avx2`, `avx512`, `openmp_avx512`, `neon`, `openmp_neon`, `barnes_hut`, `barnes_hut_avx2`, `barnes_hut_openmp_avx2`, `barnes_hut_avx512`, `barnes_hut_openmp_avx512`, `barnes_hut_neon`, `barnes_hut_openmp_neon` |
 | `--theta T` | 0.7 | Barnes-Hut opening angle |
 
 It prints one `threads / ms / speedup / efficiency` row per thread count and
@@ -137,11 +137,13 @@ mpiexec -n P n_body_sim_pro distributed [--particles N] [--steps S] [--theta T] 
 
 Each rank partitions the global particle count into a contiguous block,
 generates its block deterministically, and evaluates forces with the
-distributed Barnes-Hut essential-tree exchange. Every rank prints its own
-telemetry line:
+distributed Barnes-Hut essential-tree exchange. The traversal uses the best
+SIMD backend the machine supports automatically (AVX-512, AVX2, NEON, or
+scalar), so the run is an MPI + OpenMP + SIMD hybrid at scale. Every rank
+prints its own telemetry line, including the SIMD backend:
 
 ```
-Rank 0: particles=2048 remote_cells=2951 essential=2951 levels=8 compute=29.56% communication=10.23% avg_step=63.511 ms
+Rank 0: particles=2048 remote_cells=2951 essential=2951 levels=8 simd=AVX2 compute=29.56% communication=10.23% avg_step=63.511 ms
 ```
 
 Not running under `mpiexec`, the command fails with a clear message rather
