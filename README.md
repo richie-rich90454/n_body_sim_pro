@@ -66,14 +66,20 @@ prints JSON instead, e.g.:
   secondary support (not the design target).
 - **CMake** 3.28 or newer and a generator (Ninja recommended).
 - **SDL3** development libraries. On MSYS2/ucrt64:
-  `pacman -S mingw-w64-ucrt-x86_64-sdl3 mingw-w64-ucrt-x86_64-glew`. On
-  Debian/Ubuntu: `libsdl3-dev`, `libglew-dev`. On macOS:
-  `brew install sdl3 glew`.
-- **OpenMP** support in the compiler (for threaded kernels).
+  `pacman -S mingw-w64-ucrt-x86_64-sdl3 mingw-w64-ucrt-x86_64-glew`. On macOS:
+  `brew install sdl3`. On Ubuntu, SDL3 is not in the default repositories, so
+  use Linux Homebrew: `eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" &&
+  brew install sdl3`. GLEW is linked statically (`GLEW::glew_s`); CMake builds
+  it from source when the platform package does not provide that target (for
+  example Homebrew, which ships only the shared library).
+- **OpenMP** support in the compiler (for threaded kernels). On macOS with
+  AppleClang, `brew install libomp`.
 - **Microsoft MPI** (Windows) or an MPI implementation such as OpenMPI or
   MPICH (Linux/macOS) —only needed for the distributed (`mpiexec`) path;
-  everything else builds and runs without it.
-- **Dear ImGui** is fetched automatically by CMake over Git (SSH) —no
+  everything else builds and runs without it. CMake auto-detects MPI
+  (`-DN_BODY_SIM_PRO_ENABLE_MPI=ON` by default); pass
+  `-DN_BODY_SIM_PRO_ENABLE_MPI=OFF` to build without it.
+- **Dear ImGui** is fetched automatically by CMake over HTTPS —no
   manual step.
 
 ## Building
