@@ -87,6 +87,76 @@ static void test_avx2_matches_reference_with_softening(void) {
     n_body_sim_pro_particle_system_destroy(particle_system);
 }
 
+static void test_avx512_matches_reference_with_softening(void) {
+    NBodySimProCpuFeatures features = n_body_sim_pro_cpu_detect_features();
+    if (!features.has_avx512_foundation) {
+        N_BODY_SIM_PRO_ASSERT(1);
+        return;
+    }
+
+    const size_t particle_count = TEST_PARTICLE_COUNT;
+    NBodySimProParticleSystem* particle_system = make_random_system(particle_count, 7);
+    N_BODY_SIM_PRO_ASSERT(particle_system != NULL);
+    if (particle_system == NULL) {
+        return;
+    }
+    NBodySimProError error;
+    n_body_sim_pro_error_clear(&error);
+    NBodySimProParticleSystemView view;
+    n_body_sim_pro_particle_system_view(particle_system, &view, &error);
+
+    NBodySimProGravity gravity;
+    n_body_sim_pro_gravity_init(&gravity, 1.0, 0.02);
+
+    double reference[3 * TEST_PARTICLE_COUNT];
+    n_body_sim_pro_gravity_compute_acceleration_reference(&view, &gravity, NULL, &error);
+    for (size_t i = 0; i < particle_count; ++i) {
+        reference[3 * i + 0] = view.accelerations_x[i];
+        reference[3 * i + 1] = view.accelerations_y[i];
+        reference[3 * i + 2] = view.accelerations_z[i];
+    }
+
+    n_body_sim_pro_gravity_compute_acceleration_avx512(&view, &gravity, NULL, &error);
+    const double relative_error = maximum_relative_error(&view, reference, particle_count);
+    N_BODY_SIM_PRO_ASSERT(relative_error < 1.0e-10);
+    n_body_sim_pro_particle_system_destroy(particle_system);
+}
+
+static void test_neon_matches_reference_with_softening(void) {
+    NBodySimProCpuFeatures features = n_body_sim_pro_cpu_detect_features();
+    if (!features.has_neon) {
+        N_BODY_SIM_PRO_ASSERT(1);
+        return;
+    }
+
+    const size_t particle_count = TEST_PARTICLE_COUNT;
+    NBodySimProParticleSystem* particle_system = make_random_system(particle_count, 7);
+    N_BODY_SIM_PRO_ASSERT(particle_system != NULL);
+    if (particle_system == NULL) {
+        return;
+    }
+    NBodySimProError error;
+    n_body_sim_pro_error_clear(&error);
+    NBodySimProParticleSystemView view;
+    n_body_sim_pro_particle_system_view(particle_system, &view, &error);
+
+    NBodySimProGravity gravity;
+    n_body_sim_pro_gravity_init(&gravity, 1.0, 0.02);
+
+    double reference[3 * TEST_PARTICLE_COUNT];
+    n_body_sim_pro_gravity_compute_acceleration_reference(&view, &gravity, NULL, &error);
+    for (size_t i = 0; i < particle_count; ++i) {
+        reference[3 * i + 0] = view.accelerations_x[i];
+        reference[3 * i + 1] = view.accelerations_y[i];
+        reference[3 * i + 2] = view.accelerations_z[i];
+    }
+
+    n_body_sim_pro_gravity_compute_acceleration_neon(&view, &gravity, NULL, &error);
+    const double relative_error = maximum_relative_error(&view, reference, particle_count);
+    N_BODY_SIM_PRO_ASSERT(relative_error < 1.0e-10);
+    n_body_sim_pro_particle_system_destroy(particle_system);
+}
+
 static void test_avx2_matches_reference_without_softening(void) {
     NBodySimProCpuFeatures features = n_body_sim_pro_cpu_detect_features();
     if (!features.has_avx2) {
@@ -164,11 +234,25 @@ static void test_backend_selection(void) {
     NBodySimProCpuFeatures features = n_body_sim_pro_cpu_detect_features();
     const NBodySimProSimdBackend backend = n_body_sim_pro_simd_best_available_backend(&features);
     N_BODY_SIM_PRO_ASSERT(backend == N_BODY_SIM_PRO_SIMD_BACKEND_SCALAR ||
-                  backend == N_BODY_SIM_PRO_SIMD_BACKEND_AVX2);
+                  backend == N_BODY_SIM_PRO_SIMD_BACKEND_AVX2 ||
+                  backend == N_BODY_SIM_PRO_SIMD_BACKEND_AVX512 ||
+                  backend == N_BODY_SIM_PRO_SIMD_BACKEND_NEON);
     N_BODY_SIM_PRO_ASSERT(n_body_sim_pro_simd_backend_string(backend) != NULL);
+#ifdef N_BODY_SIM_PRO_HAVE_AVX512_KERNEL
+    if (features.has_avx512_foundation && features.has_fma) {
+        N_BODY_SIM_PRO_ASSERT(backend == N_BODY_SIM_PRO_SIMD_BACKEND_AVX512);
+    }
+#endif
+#ifdef N_BODY_SIM_PRO_HAVE_AVX2_KERNEL
     if (features.has_avx2 && features.has_fma) {
         N_BODY_SIM_PRO_ASSERT(backend == N_BODY_SIM_PRO_SIMD_BACKEND_AVX2);
     }
+#endif
+#ifdef N_BODY_SIM_PRO_HAVE_NEON_KERNEL
+    if (features.has_neon) {
+        N_BODY_SIM_PRO_ASSERT(backend == N_BODY_SIM_PRO_SIMD_BACKEND_NEON);
+    }
+#endif
 }
 
 static double root_mean_square_relative_error(NBodySimProParticleSystemView* view,
@@ -248,12 +332,118 @@ static void test_barnes_hut_avx2_matches_scalar_barnes_hut(void) {
     n_body_sim_pro_particle_system_destroy(particle_system);
 }
 
+static void test_barnes_hut_neon_matches_scalar_barnes_hut(void) {
+    NBodySimProCpuFeatures features = n_body_sim_pro_cpu_detect_features();
+    if (!features.has_neon) {
+        N_BODY_SIM_PRO_ASSERT(1);
+        return;
+    }
+
+    const size_t particle_count = TEST_PARTICLE_COUNT;
+    NBodySimProParticleSystem* particle_system = make_random_system(particle_count, 11);
+    N_BODY_SIM_PRO_ASSERT(particle_system != NULL);
+    if (particle_system == NULL) {
+        return;
+    }
+    NBodySimProError error;
+    n_body_sim_pro_error_clear(&error);
+    NBodySimProParticleSystemView view;
+    n_body_sim_pro_particle_system_view(particle_system, &view, &error);
+
+    NBodySimProGravity gravity;
+    n_body_sim_pro_gravity_init(&gravity, 1.0, 0.02);
+
+    NBodySimProBarnesHutTree* tree = n_body_sim_pro_barnes_hut_tree_create(&error);
+    N_BODY_SIM_PRO_ASSERT(tree != NULL);
+    if (tree == NULL) {
+        n_body_sim_pro_particle_system_destroy(particle_system);
+        return;
+    }
+    n_body_sim_pro_barnes_hut_tree_set_theta(tree, 0.7);
+
+    n_body_sim_pro_barnes_hut_compute_acceleration(&view, &gravity, tree, &error);
+    double reference[3 * TEST_PARTICLE_COUNT];
+    for (size_t i = 0; i < particle_count; ++i) {
+        reference[3 * i + 0] = view.accelerations_x[i];
+        reference[3 * i + 1] = view.accelerations_y[i];
+        reference[3 * i + 2] = view.accelerations_z[i];
+    }
+
+    n_body_sim_pro_barnes_hut_compute_acceleration_neon(&view, &gravity, tree, &error);
+    const double serial_error = root_mean_square_relative_error(&view, reference,
+                                                                particle_count);
+    N_BODY_SIM_PRO_ASSERT(serial_error < 1.0e-9);
+
+    n_body_sim_pro_barnes_hut_compute_acceleration_openmp_neon(&view, &gravity, tree, &error);
+    const double parallel_error = root_mean_square_relative_error(&view, reference,
+                                                                  particle_count);
+    N_BODY_SIM_PRO_ASSERT(parallel_error < 1.0e-9);
+
+    n_body_sim_pro_barnes_hut_tree_destroy(tree);
+    n_body_sim_pro_particle_system_destroy(particle_system);
+}
+
+static void test_barnes_hut_avx512_matches_scalar_barnes_hut(void) {
+    NBodySimProCpuFeatures features = n_body_sim_pro_cpu_detect_features();
+    if (!features.has_avx512_foundation) {
+        N_BODY_SIM_PRO_ASSERT(1);
+        return;
+    }
+
+    const size_t particle_count = TEST_PARTICLE_COUNT;
+    NBodySimProParticleSystem* particle_system = make_random_system(particle_count, 11);
+    N_BODY_SIM_PRO_ASSERT(particle_system != NULL);
+    if (particle_system == NULL) {
+        return;
+    }
+    NBodySimProError error;
+    n_body_sim_pro_error_clear(&error);
+    NBodySimProParticleSystemView view;
+    n_body_sim_pro_particle_system_view(particle_system, &view, &error);
+
+    NBodySimProGravity gravity;
+    n_body_sim_pro_gravity_init(&gravity, 1.0, 0.02);
+
+    NBodySimProBarnesHutTree* tree = n_body_sim_pro_barnes_hut_tree_create(&error);
+    N_BODY_SIM_PRO_ASSERT(tree != NULL);
+    if (tree == NULL) {
+        n_body_sim_pro_particle_system_destroy(particle_system);
+        return;
+    }
+    n_body_sim_pro_barnes_hut_tree_set_theta(tree, 0.7);
+
+    n_body_sim_pro_barnes_hut_compute_acceleration(&view, &gravity, tree, &error);
+    double reference[3 * TEST_PARTICLE_COUNT];
+    for (size_t i = 0; i < particle_count; ++i) {
+        reference[3 * i + 0] = view.accelerations_x[i];
+        reference[3 * i + 1] = view.accelerations_y[i];
+        reference[3 * i + 2] = view.accelerations_z[i];
+    }
+
+    n_body_sim_pro_barnes_hut_compute_acceleration_avx512(&view, &gravity, tree, &error);
+    const double serial_error = root_mean_square_relative_error(&view, reference,
+                                                                particle_count);
+    N_BODY_SIM_PRO_ASSERT(serial_error < 1.0e-9);
+
+    n_body_sim_pro_barnes_hut_compute_acceleration_openmp_avx512(&view, &gravity, tree, &error);
+    const double parallel_error = root_mean_square_relative_error(&view, reference,
+                                                                  particle_count);
+    N_BODY_SIM_PRO_ASSERT(parallel_error < 1.0e-9);
+
+    n_body_sim_pro_barnes_hut_tree_destroy(tree);
+    n_body_sim_pro_particle_system_destroy(particle_system);
+}
+
 int main(void) {
     N_BODY_SIM_PRO_TEST_SUITE_BEGIN();
     N_BODY_SIM_PRO_TEST_RUN(test_avx2_matches_reference_with_softening);
     N_BODY_SIM_PRO_TEST_RUN(test_avx2_matches_reference_without_softening);
     N_BODY_SIM_PRO_TEST_RUN(test_openmp_avx2_matches_reference);
+    N_BODY_SIM_PRO_TEST_RUN(test_avx512_matches_reference_with_softening);
+    N_BODY_SIM_PRO_TEST_RUN(test_neon_matches_reference_with_softening);
     N_BODY_SIM_PRO_TEST_RUN(test_barnes_hut_avx2_matches_scalar_barnes_hut);
+    N_BODY_SIM_PRO_TEST_RUN(test_barnes_hut_avx512_matches_scalar_barnes_hut);
+    N_BODY_SIM_PRO_TEST_RUN(test_barnes_hut_neon_matches_scalar_barnes_hut);
     N_BODY_SIM_PRO_TEST_RUN(test_backend_selection);
     return N_BODY_SIM_PRO_TEST_SUITE_END();
 }
