@@ -1,5 +1,6 @@
 #include "n_body_sim_pro/mpi/distributed_barnes_hut.h"
 
+#include "distributed_barnes_hut_internal.h"
 #include "../barnes_hut/barnes_hut_internal.h"
 #include "n_body_sim_pro/memory/allocator.h"
 
@@ -37,61 +38,6 @@
  * criterion uses the same distance, so the tree the traversal descends into
  * always has its children present.
  */
-
-enum {
-    DISTRIBUTED_MAX_LEVELS = 64,
-    DISTRIBUTED_REMOTE_LEAF_MARKER = -2,
-    DISTRIBUTED_KEPT_CAPACITY = 1048576,
-    DISTRIBUTED_WALK_STACK = 1024
-};
-
-typedef struct ExchangeCell {
-    double com_x;
-    double com_y;
-    double com_z;
-    double total_mass;
-    double cell_center_x;
-    double cell_center_y;
-    double cell_center_z;
-    double cell_half_size;
-    int32_t owner_rank;
-    int32_t owner_node_index;
-    int32_t parent_node_index;
-    int32_t is_internal;
-} ExchangeCell;
-
-typedef struct KeptCell {
-    ExchangeCell cell;
-    int32_t remote_index;
-} KeptCell;
-
-/* A foreign cell that this rank rejected (needs finer detail). */
-typedef struct RejectedParent {
-    int32_t owner_rank;
-    int32_t owner_node_index;
-} RejectedParent;
-
-struct NBodySimProDistributedSimulation {
-    int rank;
-    int comm_size;
-    int mpi_available;
-    NBodySimProBarnesHutTree* local_tree;
-    BarnesHutNode* remote_nodes;
-    size_t remote_count;
-    size_t remote_capacity;
-    int32_t* remote_root_indices;
-    ExchangeCell* remote_root_cells;
-    size_t remote_root_count;
-    KeptCell* kept_cells;
-    size_t kept_count;
-    size_t kept_capacity;
-    double theta;
-
-    size_t essential_cells;
-    int levels_exchanged;
-    double communication_time_seconds;
-    double computation_time_seconds;
-};
 
 NBodySimProDistributedSimulation* n_body_sim_pro_distributed_create(const NBodySimProMpiRuntime* runtime,
                                                        NBodySimProError* error) {
@@ -799,17 +745,218 @@ static void evaluate_particle_distributed(const NBodySimProDistributedSimulation
     *acceleration_z = result_z;
 }
 
+/*
+ * Staged per-particle distributed traversal.
+ *
+ * Walks the same nodes in the same order as evaluate_particle_distributed
+ * (identical opening decisions), but instead of accumulating scalarly it
+ * stages each accepted interaction into `ops->width` slots and applies full
+ * groups with `ops->flush` (vector FMA in the SIMD variants). A trailing
+ * partial group is applied scalarly and folded into the final `ops->reduce`
+ * along with the vector horizontal sums.
+ *
+ * The self-interaction guard matches the scalar kernel exactly: the local
+ * tree's leaf equal to the query particle is skipped before staging, so a
+ * zero-softening self lane can never arise.
+ */
+void n_body_sim_pro_distributed_evaluate_particle_staged(
+    const NBodySimProDistributedSimulation* simulation, const NBodySimProBarnesHutTree* tree,
+    const NBodySimProParticleSystemView* view, const NBodySimProGravity* gravity,
+    size_t query_particle, const NBodySimProDistributedSimdOps* ops, void* accumulator,
+    double* acceleration_x, double* acceleration_y, double* acceleration_z) {
+    typedef struct WalkEntry {
+        int32_t node_index;
+        int is_remote;
+        double cell_center_x;
+        double cell_center_y;
+        double cell_center_z;
+        double cell_half_size;
+    } WalkEntry;
+
+    const double query_x = view->positions_x[query_particle];
+    const double query_y = view->positions_y[query_particle];
+    const double query_z = view->positions_z[query_particle];
+    const double theta_squared = simulation->theta * simulation->theta;
+    const double softening_squared = gravity->softening_squared;
+    const double gravitational_constant = gravity->gravitational_constant;
+
+    double scalar_x = 0.0;
+    double scalar_y = 0.0;
+    double scalar_z = 0.0;
+
+    double stage_dx[8];
+    double stage_dy[8];
+    double stage_dz[8];
+    double stage_mass[8];
+    int stage_size = 0;
+
+    WalkEntry stack[DISTRIBUTED_WALK_STACK];
+    int stack_size = 0;
+
+#define NBS_DIST_SIMD_STAGE(d_x, d_y, d_z, mass)                         \
+    do {                                                                \
+        stage_dx[stage_size] = (d_x);                                   \
+        stage_dy[stage_size] = (d_y);                                   \
+        stage_dz[stage_size] = (d_z);                                   \
+        stage_mass[stage_size] = (mass);                                \
+        ++stage_size;                                                   \
+        if (stage_size == ops->width) {                                 \
+            ops->flush(accumulator, stage_dx, stage_dy, stage_dz,       \
+                       stage_mass, softening_squared,                   \
+                       gravitational_constant);                         \
+            stage_size = 0;                                             \
+        }                                                               \
+    } while (0)
+
+    /* Phase 1: the local tree (identical node visits to the scalar kernel). */
+    stack[stack_size++] =
+        (WalkEntry){0, 0, tree->root_center_x, tree->root_center_y, tree->root_center_z,
+                    tree->root_half_size};
+    while (stack_size > 0) {
+        const WalkEntry entry = stack[--stack_size];
+        const BarnesHutNode* node = &tree->nodes[entry.node_index];
+        if (node->particle_count == 0) {
+            continue;
+        }
+        if (node->particle_index != -1) {
+            if ((size_t)node->particle_index != query_particle) {
+                const size_t j = (size_t)node->particle_index;
+                NBS_DIST_SIMD_STAGE(view->positions_x[j] - query_x,
+                                    view->positions_y[j] - query_y,
+                                    view->positions_z[j] - query_z, view->masses[j]);
+            }
+            continue;
+        }
+        const double delta_x = node->center_of_mass_x - query_x;
+        const double delta_y = node->center_of_mass_y - query_y;
+        const double delta_z = node->center_of_mass_z - query_z;
+        const double distance_squared = delta_x * delta_x + delta_y * delta_y + delta_z * delta_z;
+        const double cell_size_squared = 4.0 * entry.cell_half_size * entry.cell_half_size;
+        if (distance_squared > 0.0 &&
+            cell_size_squared < theta_squared * distance_squared) {
+            NBS_DIST_SIMD_STAGE(delta_x, delta_y, delta_z, node->total_mass);
+            continue;
+        }
+        const double child_half_size = 0.5 * entry.cell_half_size;
+        const double child_offset = entry.cell_half_size * 0.5;
+        for (int child = 0; child < 8; ++child) {
+            const int32_t child_index = node->child_indices[child];
+            if (child_index == -1) {
+                continue;
+            }
+            if (stack_size >= DISTRIBUTED_WALK_STACK) {
+                break;
+            }
+            const double child_center_x =
+                entry.cell_center_x + ((child & 1) ? child_offset : -child_offset);
+            const double child_center_y =
+                entry.cell_center_y + ((child & 2) ? child_offset : -child_offset);
+            const double child_center_z =
+                entry.cell_center_z + ((child & 4) ? child_offset : -child_offset);
+            stack[stack_size++] = (WalkEntry){child_index, 0, child_center_x, child_center_y,
+                                              child_center_z, child_half_size};
+        }
+    }
+
+    /* Phase 2: the remote essential forest. */
+    stack_size = 0;
+    for (size_t root = 0; root < simulation->remote_root_count; ++root) {
+        const ExchangeCell* cell = &simulation->remote_root_cells[root];
+        stack[stack_size++] =
+            (WalkEntry){simulation->remote_root_indices[root], 1, cell->cell_center_x,
+                        cell->cell_center_y, cell->cell_center_z, cell->cell_half_size};
+    }
+    while (stack_size > 0) {
+        const WalkEntry entry = stack[--stack_size];
+        const BarnesHutNode* node = &simulation->remote_nodes[entry.node_index];
+        if (node->particle_count == 0) {
+            continue;
+        }
+        if (node->particle_index != -1) {
+            double particle_x;
+            double particle_y;
+            double particle_z;
+            double particle_mass;
+            if (node->particle_index == DISTRIBUTED_REMOTE_LEAF_MARKER) {
+                particle_x = node->center_of_mass_x;
+                particle_y = node->center_of_mass_y;
+                particle_z = node->center_of_mass_z;
+                particle_mass = node->total_mass;
+            } else {
+                const size_t j = (size_t)node->particle_index;
+                particle_x = view->positions_x[j];
+                particle_y = view->positions_y[j];
+                particle_z = view->positions_z[j];
+                particle_mass = view->masses[j];
+            }
+            NBS_DIST_SIMD_STAGE(particle_x - query_x, particle_y - query_y,
+                                particle_z - query_z, particle_mass);
+            continue;
+        }
+        const double delta_x = node->center_of_mass_x - query_x;
+        const double delta_y = node->center_of_mass_y - query_y;
+        const double delta_z = node->center_of_mass_z - query_z;
+        const double distance_squared = delta_x * delta_x + delta_y * delta_y + delta_z * delta_z;
+        const double cell_size_squared = 4.0 * entry.cell_half_size * entry.cell_half_size;
+        if (distance_squared > 0.0 &&
+            cell_size_squared < theta_squared * distance_squared) {
+            NBS_DIST_SIMD_STAGE(delta_x, delta_y, delta_z, node->total_mass);
+            continue;
+        }
+        const double child_half_size = 0.5 * entry.cell_half_size;
+        const double child_offset = entry.cell_half_size * 0.5;
+        for (int child = 0; child < 8; ++child) {
+            const int32_t child_index = node->child_indices[child];
+            if (child_index == -1) {
+                continue;
+            }
+            if (stack_size >= DISTRIBUTED_WALK_STACK) {
+                break;
+            }
+            const double child_center_x =
+                entry.cell_center_x + ((child & 1) ? child_offset : -child_offset);
+            const double child_center_y =
+                entry.cell_center_y + ((child & 2) ? child_offset : -child_offset);
+            const double child_center_z =
+                entry.cell_center_z + ((child & 4) ? child_offset : -child_offset);
+            stack[stack_size++] = (WalkEntry){child_index, 1, child_center_x, child_center_y,
+                                              child_center_z, child_half_size};
+        }
+    }
+
+    /* Trailing partial group: applied scalarly so the empty slots never
+     * contribute garbage (or a 0*inf NaN at zero softening). */
+    for (int slot = 0; slot < stage_size; ++slot) {
+        const double d_x = stage_dx[slot];
+        const double d_y = stage_dy[slot];
+        const double d_z = stage_dz[slot];
+        const double distance_squared =
+            d_x * d_x + d_y * d_y + d_z * d_z + softening_squared;
+        const double inverse_distance_cubed =
+            1.0 / (distance_squared * sqrt(distance_squared));
+        const double force_scale =
+            gravitational_constant * stage_mass[slot] * inverse_distance_cubed;
+        scalar_x += force_scale * d_x;
+        scalar_y += force_scale * d_y;
+        scalar_z += force_scale * d_z;
+    }
+
+    ops->reduce(accumulator, scalar_x, scalar_y, scalar_z, acceleration_x,
+                acceleration_y, acceleration_z);
+#undef NBS_DIST_SIMD_STAGE
+}
+
 /* ------------------------------------------------------------------ */
 /* Public entry point                                                  */
 /* ------------------------------------------------------------------ */
 
-NBodySimProStatus n_body_sim_pro_distributed_compute_acceleration(const NBodySimProParticleSystemView* view,
-                                                     const NBodySimProGravity* gravity,
-                                                     void* context, NBodySimProError* error) {
-    NBodySimProDistributedSimulation* simulation = (NBodySimProDistributedSimulation*)context;
-    if (simulation == NULL || view == NULL || gravity == NULL) {
+NBodySimProStatus n_body_sim_pro_distributed_compute_impl(
+    NBodySimProDistributedSimulation* simulation, const NBodySimProParticleSystemView* view,
+    const NBodySimProGravity* gravity, NBodySimProDistributedEvaluateFn evaluate,
+    NBodySimProError* error) {
+    if (simulation == NULL || view == NULL || gravity == NULL || evaluate == NULL) {
         n_body_sim_pro_error_set(error, N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT, __FILE__, __LINE__,
-                         "simulation, view, and gravity must not be null");
+                         "simulation, view, gravity, and evaluate must not be null");
         return N_BODY_SIM_PRO_STATUS_INVALID_ARGUMENT;
     }
 
@@ -863,9 +1010,8 @@ NBodySimProStatus n_body_sim_pro_distributed_compute_acceleration(const NBodySim
         double acceleration_x = 0.0;
         double acceleration_y = 0.0;
         double acceleration_z = 0.0;
-        evaluate_particle_distributed(simulation, simulation->local_tree, local_view,
-                                      gravity, (size_t)i, &acceleration_x,
-                                      &acceleration_y, &acceleration_z);
+        evaluate(simulation, simulation->local_tree, local_view, gravity, (size_t)i,
+                 &acceleration_x, &acceleration_y, &acceleration_z);
         local_view->accelerations_x[i] = acceleration_x;
         local_view->accelerations_y[i] = acceleration_y;
         local_view->accelerations_z[i] = acceleration_z;
@@ -874,6 +1020,14 @@ NBodySimProStatus n_body_sim_pro_distributed_compute_acceleration(const NBodySim
     n_body_sim_pro_barnes_hut_scatter_accelerations(simulation->local_tree, view);
     simulation->computation_time_seconds = n_body_sim_pro_mpi_wall_time() - computation_start;
     return N_BODY_SIM_PRO_STATUS_OK;
+}
+
+NBodySimProStatus n_body_sim_pro_distributed_compute_acceleration(const NBodySimProParticleSystemView* view,
+                                                      const NBodySimProGravity* gravity,
+                                                      void* context, NBodySimProError* error) {
+    NBodySimProDistributedSimulation* simulation = (NBodySimProDistributedSimulation*)context;
+    return n_body_sim_pro_distributed_compute_impl(simulation, view, gravity,
+                                                   evaluate_particle_distributed, error);
 }
 
 int n_body_sim_pro_distributed_stats(const NBodySimProDistributedSimulation* simulation,
