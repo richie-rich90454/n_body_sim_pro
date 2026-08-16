@@ -1,19 +1,23 @@
 name: build
-'on':
+
+on:
   push:
     branches:
       - main
     tags:
-      - v[0-9]+.[0-9]+.[0-9]+
+      - 'v[0-9]+.[0-9]+.[0-9]+'
   pull_request:
     branches:
       - main
-  workflow_dispatch: null
+  workflow_dispatch:
+
 permissions:
   contents: read
+
 concurrency:
   group: build-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
 jobs:
   build:
     name: ${{ matrix.name }}
@@ -37,41 +41,49 @@ jobs:
             omp_root: /opt/homebrew/opt/libomp
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
+
+      # ------------------------------------------------------------------
+      # Windows x64 (MSYS2 UCRT64)
+      # ------------------------------------------------------------------
       - name: Set up MSYS2 toolchain
         if: matrix.platform == 'windows'
         uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
           update: true
-          install: mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-sdl3 mingw-w64-ucrt-x86_64-glew
-      - name: Configure Git for HTTPS dependency fetching
-        if: matrix.platform == 'windows'
-        shell: msys2 {0}
-        run: |
-          set -e
-          git config --global url."https://github.com/".insteadOf "git@github.com:"
-      - name: Configure
-        if: matrix.platform == 'windows'
-        shell: msys2 {0}
-        run: |
-          set -e
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-git
+            mingw-w64-ucrt-x86_64-sdl3
+            mingw-w64-ucrt-x86_64-glew
 
+      - name: Configure (Windows)
+        if: matrix.platform == 'windows'
+        shell: msys2 {0}
+        run: |
+          set -e
           cmake \
             -S . \
             -B build \
             -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DN_BODY_SIM_PRO_BUILD_TESTS=OFF
-      - name: Build
+            -DCMAKE_PREFIX_PATH="$(cygpath -m /ucrt64)" \
+            -DN_BODY_SIM_PRO_BUILD_TESTS=OFF \
+            -DN_BODY_SIM_PRO_ENABLE_MPI=OFF
+
+      - name: Build (Windows)
         if: matrix.platform == 'windows'
         shell: msys2 {0}
         run: |
           set -e
           cmake --build build --parallel
-      - name: Package
+
+      - name: Package (Windows)
         if: matrix.platform == 'windows'
         shell: pwsh
         run: |
@@ -87,48 +99,40 @@ jobs:
             -Path "build/bin/*" `
             -DestinationPath "release/${{ matrix.archive }}" `
             -CompressionLevel Optimal
+
+      # ------------------------------------------------------------------
+      # Linux x64 (Ubuntu runner + Homebrew SDL3)
+      # ------------------------------------------------------------------
       - name: Set up Linux Homebrew
         if: matrix.platform == 'linux'
         shell: bash
         run: |
           set -e
-
           eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-
           echo "/home/linuxbrew/.linuxbrew/bin" >> "$GITHUB_PATH"
 
-          brew --version
       - name: Install Linux dependencies
         if: matrix.platform == 'linux'
         shell: bash
         run: |
           set -e
-
           sudo apt-get update
-
           sudo apt-get install -y \
             build-essential \
-            cmake \
-            ninja-build \
-            pkg-config
+            libx11-dev \
+            libxext-dev \
+            libgl1-mesa-dev \
+            libopenmpi-dev
 
           eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          brew install sdl3
 
-          brew install sdl3 glew
-      - name: Configure Git for HTTPS dependency fetching
+      - name: Configure (Linux)
         if: matrix.platform == 'linux'
         shell: bash
         run: |
           set -e
-          git config --global url."https://github.com/".insteadOf "git@github.com:"
-      - name: Configure
-        if: matrix.platform == 'linux'
-        shell: bash
-        run: |
-          set -e
-
           eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-
           cmake \
             -S . \
             -B build \
@@ -136,81 +140,104 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_PREFIX_PATH="$(brew --prefix)" \
             -DN_BODY_SIM_PRO_BUILD_TESTS=OFF
-      - name: Build
+
+      - name: Build (Linux)
         if: matrix.platform == 'linux'
         shell: bash
         run: |
           set -e
           cmake --build build --parallel
-      - name: Package
+
+      - name: Package (Linux)
         if: matrix.platform == 'linux'
         shell: bash
         run: |
           set -e
-
-          mkdir -p release
-
+          mkdir -p release/package
           test -f build/bin/n_body_sim_pro
 
-          tar \
-            -C build/bin \
-            -czf "release/${{ matrix.archive }}" \
-            n_body_sim_pro
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+
+          cp build/bin/n_body_sim_pro release/package/
+          cp -L "$(brew --prefix sdl3)"/lib/libSDL3.so.0* release/package/
+          patchelf --set-rpath '$ORIGIN' release/package/n_body_sim_pro
+
+          tar -C release/package -czf "release/${{ matrix.archive }}" .
+
+      # ------------------------------------------------------------------
+      # macOS ARM64 (macos-14, Homebrew)
+      # ------------------------------------------------------------------
       - name: Install macOS dependencies
         if: matrix.platform == 'macos'
         shell: bash
         run: |
           set -e
-
           brew update
-          brew install sdl3 glew ninja libomp
-      - name: Configure Git for HTTPS dependency fetching
-        if: matrix.platform == 'macos'
-        shell: bash
-        run: |
-          set -e
-          git config --global url."https://github.com/".insteadOf "git@github.com:"
-      - name: Configure
-        if: matrix.platform == 'macos'
-        shell: bash
-        run: |
-          set -e
+          brew install sdl3 ninja libomp open-mpi
 
+      - name: Configure (macOS)
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          set -e
           cmake \
             -S . \
             -B build \
             -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH="/opt/homebrew" \
+            -DCMAKE_PREFIX_PATH=/opt/homebrew \
             -DOpenMP_ROOT="${{ matrix.omp_root }}" \
             -DN_BODY_SIM_PRO_BUILD_TESTS=OFF
-      - name: Build
+
+      - name: Build (macOS)
         if: matrix.platform == 'macos'
         shell: bash
         run: |
           set -e
           cmake --build build --parallel
-      - name: Package
+
+      - name: Package (macOS)
         if: matrix.platform == 'macos'
         shell: bash
         run: |
           set -e
-
           mkdir -p release
 
-          test -f build/bin/n_body_sim_pro
+          APP="build/bin/n_body_sim_pro.app"
+          test -d "$APP"
 
-          tar \
-            -C build/bin \
-            -czf "release/${{ matrix.archive }}" \
-            n_body_sim_pro
+          FRAMEWORKS="$APP/Contents/Frameworks"
+          mkdir -p "$FRAMEWORKS"
+
+          cp -L "$(brew --prefix sdl3)/lib/libSDL3.0.dylib" "$FRAMEWORKS/"
+          cp -L "$(brew --prefix libomp)/lib/libomp.dylib" "$FRAMEWORKS/"
+
+          EXE="$APP/Contents/MacOS/N-Body Sim Pro"
+          install_name_tool -change \
+            "$(brew --prefix sdl3)/lib/libSDL3.0.dylib" \
+            "@executable_path/../Frameworks/libSDL3.0.dylib" "$EXE"
+          install_name_tool -change \
+            "$(brew --prefix libomp)/lib/libomp.dylib" \
+            "@executable_path/../Frameworks/libomp.dylib" "$EXE"
+          install_name_tool -id \
+            "@executable_path/../Frameworks/libSDL3.0.dylib" \
+            "$FRAMEWORKS/libSDL3.0.dylib"
+          install_name_tool -id \
+            "@executable_path/../Frameworks/libomp.dylib" \
+            "$FRAMEWORKS/libomp.dylib"
+
+          codesign --force --deep --sign - "$APP"
+
+          tar -C build/bin -czf "release/${{ matrix.archive }}" n_body_sim_pro.app
+
       - name: Upload packaged build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.name }}
           path: release/${{ matrix.archive }}
           if-no-files-found: error
           compression-level: 0
+
   release:
     name: Release ${{ github.ref_name }}
     if: github.ref_type == 'tag'
@@ -220,18 +247,26 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Guard non-semver tags
+        shell: bash
+        run: |
+          set -e
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::$GITHUB_REF_NAME is not a vX.Y.Z tag; refusing to release"
+            exit 1
+          fi
       - name: Download Windows build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: Windows x64
           path: release
       - name: Download Linux build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: Linux x64
           path: release
       - name: Download macOS build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: macOS ARM64
           path: release
@@ -239,10 +274,8 @@ jobs:
         shell: bash
         run: |
           set -e
-
           echo "Release assets:"
           ls -lah release
-
           test -f release/n_body_sim_pro-windows-x64.zip
           test -f release/n_body_sim_pro-linux-x64.tar.gz
           test -f release/n_body_sim_pro-macos-arm64.tar.gz
