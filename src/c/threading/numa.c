@@ -116,6 +116,9 @@ int n_body_sim_pro_thread_affinity_pin(int logical_processor) {
     }
     return 0;
 #else
+    /* Linux: pin with sched_setaffinity. Other POSIX platforms (e.g. macOS)
+     * expose no equivalent API; report unsupported. */
+#if defined(__linux__)
     cpu_set_t set;
     CPU_ZERO(&set);
     CPU_SET((size_t)logical_processor, &set);
@@ -123,6 +126,10 @@ int n_body_sim_pro_thread_affinity_pin(int logical_processor) {
         return 1;
     }
     return 0;
+#else
+    (void)logical_processor;
+    return 1;
+#endif
 #endif
 }
 
