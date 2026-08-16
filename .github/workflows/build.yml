@@ -1,0 +1,107 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-latest
+            shell: msys2 {0}
+          - name: Linux x64
+            os: ubuntu-latest
+            shell: bash
+          - name: macOS ARM64
+            os: macos-14
+            shell: bash
+            omp_root: /opt/homebrew/opt/libomp
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # MSYS2 ucrt64 toolchain (GCC), matching the CMakePresets configuration.
+      - name: Set up MSYS2 toolchain (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-sdl3
+            mingw-w64-ucrt-x86_64-glew
+
+      # Dear ImGui is fetched by CMake over SSH (git@github.com). The
+      # BUILD_SECRET repo secret carries the SSH private key that authorizes
+      # that fetch. Without it (e.g. PRs from forks), fall back to a plain
+      # https clone of the public dependency.
+      - name: Set up SSH key (BUILD_SECRET)
+        shell: ${{ matrix.shell }}
+        env:
+          BUILD_SECRET: ${{ secrets.BUILD_SECRET }}
+        run: |
+          set -e
+          if [ -z "$BUILD_SECRET" ]; then
+            echo "BUILD_SECRET not set; using https for the dependency fetch."
+            git config --global url."https://github.com/".insteadOf "git@github.com:"
+            exit 0
+          fi
+          mkdir -p "$HOME/.ssh"
+          printf '%s\n' "$BUILD_SECRET" > "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          ssh-keyscan github.com >> "$HOME/.ssh/known_hosts" 2>/dev/null || true
+          if [ -n "$USERPROFILE" ]; then
+            mkdir -p "$USERPROFILE/.ssh"
+            printf '%s\n' "$BUILD_SECRET" > "$USERPROFILE/.ssh/id_ed25519"
+            chmod 600 "$USERPROFILE/.ssh/id_ed25519"
+            ssh-keyscan github.com >> "$USERPROFILE/.ssh/known_hosts" 2>/dev/null || true
+          fi
+
+      - name: Install dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsdl3-dev libglew-dev ninja-build
+
+      - name: Install dependencies (macOS)
+        if: matrix.os == 'macos-14'
+        run: |
+          brew install sdl3 glew ninja libomp
+
+      - name: Configure
+        shell: ${{ matrix.shell }}
+        run: |
+          if [ -n "${{ matrix.omp_root }}" ]; then
+            cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+              -DOpenMP_ROOT="${{ matrix.omp_root }}"
+          else
+            cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          fi
+
+      - name: Build
+        shell: ${{ matrix.shell }}
+        run: cmake --build build
+
+      - name: Test
+        shell: ${{ matrix.shell }}
+        run: ctest --test-dir build --output-on-failure
